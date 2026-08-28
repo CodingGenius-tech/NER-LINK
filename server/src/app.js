@@ -11,6 +11,7 @@ const incidentRoutes = require("./routes/incident.routes");
 const vehicleRoutes = require("./routes/vehicle.routes");
 const vehicleLocationRoutes = require("./routes/vehicleLocation.routes");
 const deliveryRoutes = require("./routes/delivery.routes");
+const routeRoutes = require("./routes/route.routes");
 
 const app = express();
 
@@ -47,6 +48,7 @@ app.use("/api/incidents", incidentRoutes);
 app.use("/api/vehicles", vehicleRoutes);
 app.use("/api/vehicle-locations", vehicleLocationRoutes);
 app.use("/api/deliveries", deliveryRoutes);
+app.use("/api/routes", routeRoutes);
 
 // ================================
 // 404 Handler
