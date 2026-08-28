@@ -14,6 +14,7 @@ const deliveryRoutes = require("./routes/delivery.routes");
 const routeRoutes = require("./routes/route.routes");
 const routePredictionRoutes = require("./routes/routePrediction.routes");
 const alertRoutes = require("./routes/alert.routes");
+const notificationRoutes = require("./routes/notification.routes");
 
 const app = express();
 
@@ -53,6 +54,7 @@ app.use("/api/deliveries", deliveryRoutes);
 app.use("/api/routes", routeRoutes);
 app.use("/api/route-predictions", routePredictionRoutes);
 app.use("/api/alerts", alertRoutes);
+app.use("/api/notifications", notificationRoutes);
 
 // ================================
 // 404 Handler
