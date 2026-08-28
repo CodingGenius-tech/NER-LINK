@@ -13,6 +13,8 @@ const vehicleLocationRoutes = require("./routes/vehicleLocation.routes");
 const deliveryRoutes = require("./routes/delivery.routes");
 const routeRoutes = require("./routes/route.routes");
 const routePredictionRoutes = require("./routes/routePrediction.routes");
+const alertRoutes = require("./routes/alert.routes");
+
 const app = express();
 
 // ================================
@@ -50,6 +52,7 @@ app.use("/api/vehicle-locations", vehicleLocationRoutes);
 app.use("/api/deliveries", deliveryRoutes);
 app.use("/api/routes", routeRoutes);
 app.use("/api/route-predictions", routePredictionRoutes);
+app.use("/api/alerts", alertRoutes);
 
 // ================================
 // 404 Handler
