@@ -1,5 +1,4 @@
 const { Pool } = require("pg");
-require("dotenv").config();
 
 const pool = new Pool({
   host: process.env.DB_HOST,
@@ -14,7 +13,7 @@ pool.on("connect", () => {
 });
 
 pool.on("error", (error) => {
-  console.error("Unexpected PostgreSQL pool error:", error);
+  console.error("Unexpected PostgreSQL pool error:", error.message);
 });
 
 const testDatabaseConnection = async () => {
