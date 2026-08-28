@@ -73,9 +73,33 @@ const createUser = async ({
 
   return result.rows[0];
 };
+// Get user by email for authentication
+const getUserByEmail = async (email) => {
+  const result = await pool.query(
+    `
+    SELECT
+      id,
+      name,
+      email,
+      password_hash,
+      role,
+      phone,
+      preferred_language,
+      is_active,
+      created_at,
+      updated_at
+    FROM users
+    WHERE email = $1
+    `,
+    [email]
+  );
+
+  return result.rows[0] || null;
+};
 
 module.exports = {
   getAllUsers,
   getUserById,
+  getUserByEmail,
   createUser,
 };
