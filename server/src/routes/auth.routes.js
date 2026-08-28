@@ -8,20 +8,29 @@ const {
   authenticateToken,
 } = require("../middleware/auth.middleware");
 
+const {
+  authorizeRoles,
+} = require("../middleware/role.middleware");
+
 const router = express.Router();
 
 // POST /api/auth/login
 router.post("/login", loginUser);
 
 // GET /api/auth/me
-router.get("/me", authenticateToken, (req, res) => {
-  res.status(200).json({
-    success: true,
-    message: "Authentication successful",
-    data: {
-      user: req.user,
-    },
-  });
-});
+router.get(
+  "/me",
+  authenticateToken,
+  authorizeRoles("ADMIN"),
+  (req, res) => {
+    res.status(200).json({
+      success: true,
+      message: "Admin access granted",
+      data: {
+        user: req.user,
+      },
+    });
+  }
+);
 
 module.exports = router;
