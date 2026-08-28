@@ -1,4 +1,16 @@
 const {
+  createUserSchema,
+} = require("../utils/user.validation");
+
+const {
+  hashPassword,
+} = require("../utils/password");
+
+const {
+  createUser,
+} = require("../models/user.model");
+
+const {
   getAllUsers,
   getUserById,
 } = require("../models/user.model");
@@ -59,7 +71,72 @@ const getUser = async (req, res) => {
   }
 };
 
+// ========================================
+// CREATE USER
+// ========================================
+
+const createUserAccount = async (req, res) => {
+  try {
+    // Validate incoming request
+    const validationResult = createUserSchema.safeParse(req.body);
+
+    if (!validationResult.success) {
+      return res.status(400).json({
+        success: false,
+        message: "Validation failed",
+        errors: validationResult.error.issues.map((issue) => ({
+          field: issue.path.join("."),
+          message: issue.message,
+        })),
+      });
+    }
+
+    const {
+      name,
+      email,
+      password,
+      role,
+      phone,
+    } = validationResult.data;
+
+    // Hash password before storing it
+    const passwordHash = await hashPassword(password);
+
+    // Create user in database
+    const user = await createUser({
+      name,
+      email,
+      passwordHash,
+      role,
+      phone,
+    });
+
+    res.status(201).json({
+      success: true,
+      message: "User created successfully",
+      data: user,
+    });
+  } catch (error) {
+    console.error("Create user failed:", error.message);
+
+    // PostgreSQL unique violation
+    if (error.code === "23505") {
+      return res.status(409).json({
+        success: false,
+        message: "A user with this email already exists",
+      });
+    }
+
+    res.status(500).json({
+      success: false,
+      message: "Failed to create user",
+      error: error.message,
+    });
+  }
+};
+
 module.exports = {
   getUsers,
   getUser,
+  createUserAccount,
 };

@@ -39,7 +39,43 @@ const getUserById = async (id) => {
   return result.rows[0] || null;
 };
 
+// Create a new user
+const createUser = async ({
+  name,
+  email,
+  passwordHash,
+  role,
+  phone,
+}) => {
+  const result = await pool.query(
+    `
+    INSERT INTO users (
+      name,
+      email,
+      password_hash,
+      role,
+      phone
+    )
+    VALUES ($1, $2, $3, COALESCE($4, 'OPERATOR'::user_role), $5)
+    RETURNING
+      id,
+      name,
+      email,
+      role,
+      phone,
+      preferred_language,
+      is_active,
+      created_at,
+      updated_at
+    `,
+    [name, email, passwordHash, role ?? null, phone ?? null]
+  );
+
+  return result.rows[0];
+};
+
 module.exports = {
   getAllUsers,
   getUserById,
+  createUser,
 };
