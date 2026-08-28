@@ -7,6 +7,7 @@ const userRoutes = require("./routes/user.routes");
 const authRoutes = require("./routes/auth.routes");
 const districtRoutes = require("./routes/district.routes");
 const roadRoutes = require("./routes/road.routes");
+const incidentRoutes = require("./routes/incident.routes");
 
 const app = express();
 
@@ -39,6 +40,7 @@ app.use("/api/users", userRoutes);
 app.use("/api/auth", authRoutes);
 app.use("/api/districts", districtRoutes);
 app.use("/api/roads", roadRoutes);
+app.use("/api/incidents", incidentRoutes);
 
 // ================================
 // 404 Handler
