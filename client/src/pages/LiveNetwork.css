@@ -1,0 +1,1114 @@
+/* =====================================================
+   LIVE NETWORK PAGE
+===================================================== */
+
+.live-network-page {
+
+  min-height: 100vh;
+
+  padding: 28px;
+
+  background: #080a0d;
+
+  color: #dce1e7;
+
+  font-family:
+    Inter,
+    system-ui,
+    sans-serif;
+
+}
+
+
+/* =====================================================
+   HEADER
+===================================================== */
+
+.live-network-header {
+
+  display: flex;
+
+  justify-content: space-between;
+
+  align-items: flex-end;
+
+  margin-bottom: 20px;
+
+}
+
+
+.live-network-label {
+
+  color: #727c87;
+
+  font-size: 9px;
+
+  letter-spacing: 1.5px;
+
+  margin-bottom: 8px;
+
+}
+
+
+.live-network-label span {
+
+  width: 6px;
+
+  height: 6px;
+
+  display: inline-block;
+
+  border-radius: 50%;
+
+  background: #39d98a;
+
+  margin-right: 7px;
+
+}
+
+
+.live-network-header h1 {
+
+  margin: 0 0 6px;
+
+  color: #f1f3f5;
+
+  font-size: 28px;
+
+}
+
+
+.live-network-header p {
+
+  margin: 0;
+
+  color: #6f7883;
+
+  font-size: 11px;
+
+}
+
+
+.live-network-count {
+
+  display: flex;
+
+  align-items: center;
+
+  gap: 7px;
+
+  color: #39d98a;
+
+  font-size: 9px;
+
+}
+
+
+.live-indicator {
+
+  width: 6px;
+
+  height: 6px;
+
+  display: inline-block;
+
+  border-radius: 50%;
+
+  background: #39d98a;
+
+  box-shadow:
+    0 0 0 4px
+    rgba(57, 217, 138, 0.08);
+
+}
+
+
+.record-count {
+
+  margin-left: 8px;
+
+  color: #6f7883;
+
+}
+
+
+/* =====================================================
+   SUMMARY
+===================================================== */
+
+.network-summary {
+
+  display: grid;
+
+  grid-template-columns:
+    repeat(4, 1fr);
+
+  border: 1px solid #20252b;
+
+  border-radius: 8px;
+
+  overflow: hidden;
+
+  margin-bottom: 14px;
+
+}
+
+
+.network-summary-card {
+
+  min-height: 75px;
+
+  padding: 14px;
+
+  background: #0c0f13;
+
+  border-right: 1px solid #20252b;
+
+}
+
+
+.network-summary-card:last-child {
+
+  border-right: none;
+
+}
+
+
+.network-summary-card span {
+
+  display: block;
+
+  color: #69727c;
+
+  font-size: 8px;
+
+  margin-bottom: 8px;
+
+}
+
+
+.network-summary-card strong {
+
+  color: #e8ebef;
+
+  font-size: 22px;
+
+}
+
+
+.network-summary-card .moving-number {
+
+  color: #39d98a;
+
+}
+
+
+.network-summary-card .delayed-number {
+
+  color: #e2a93b;
+
+}
+
+
+/* =====================================================
+   GPS MAP PANEL
+===================================================== */
+
+.gps-map-panel {
+
+  background: #0b0e12;
+
+  border: 1px solid #20252b;
+
+  border-radius: 8px;
+
+  overflow: hidden;
+
+  margin-bottom: 14px;
+
+}
+
+
+.gps-map-header {
+
+  min-height: 70px;
+
+  padding: 0 15px;
+
+  display: flex;
+
+  align-items: center;
+
+  justify-content: space-between;
+
+  border-bottom: 1px solid #1c2127;
+
+}
+
+
+.gps-map-header > div:first-child span {
+
+  color: #69727c;
+
+  font-size: 8px;
+
+  letter-spacing: 0.8px;
+
+}
+
+
+.gps-map-header h2 {
+
+  margin: 5px 0 0;
+
+  color: #dce1e6;
+
+  font-size: 14px;
+
+  font-weight: 500;
+
+}
+
+
+.map-status {
+
+  display: flex;
+
+  align-items: center;
+
+  gap: 7px;
+
+  color: #39d98a;
+
+  font-size: 8px;
+
+  letter-spacing: 0.5px;
+
+}
+
+
+.map-status span {
+
+  width: 6px;
+
+  height: 6px;
+
+  display: inline-block;
+
+  border-radius: 50%;
+
+  background: #39d98a;
+
+  box-shadow:
+    0 0 0 4px
+    rgba(57, 217, 138, 0.08);
+
+}
+
+
+/* =====================================================
+   MAP
+===================================================== */
+
+.gps-map {
+
+  height: 520px;
+
+  position: relative;
+
+}
+
+
+.leaflet-map {
+
+  width: 100%;
+
+  height: 100%;
+
+  background: #101419;
+
+}
+
+
+/* =====================================================
+   VEHICLE MARKERS
+===================================================== */
+
+.vehicle-marker {
+
+  width: 18px;
+
+  height: 18px;
+
+  border-radius: 50%;
+
+  display: flex;
+
+  align-items: center;
+
+  justify-content: center;
+
+  background:
+    rgba(120, 130, 140, 0.25);
+
+  border: 2px solid #858e98;
+
+  box-shadow:
+    0 0 0 4px
+    rgba(120, 130, 140, 0.08),
+
+    0 2px 8px
+    rgba(0, 0, 0, 0.5);
+
+}
+
+
+.vehicle-marker span {
+
+  width: 6px;
+
+  height: 6px;
+
+  border-radius: 50%;
+
+  background: #858e98;
+
+}
+
+
+/* =====================================================
+   MOVING MARKER
+===================================================== */
+
+.vehicle-marker-moving {
+
+  background:
+    rgba(57, 217, 138, 0.18);
+
+  border-color: #39d98a;
+
+  box-shadow:
+    0 0 0 5px
+    rgba(57, 217, 138, 0.08),
+
+    0 0 14px
+    rgba(57, 217, 138, 0.35);
+
+}
+
+
+.vehicle-marker-moving span {
+
+  background: #39d98a;
+
+}
+
+
+/* =====================================================
+   DELAYED MARKER
+===================================================== */
+
+.vehicle-marker-delayed {
+
+  background:
+    rgba(226, 169, 59, 0.18);
+
+  border-color: #e2a93b;
+
+  box-shadow:
+    0 0 0 5px
+    rgba(226, 169, 59, 0.08),
+
+    0 0 14px
+    rgba(226, 169, 59, 0.3);
+
+}
+
+
+.vehicle-marker-delayed span {
+
+  background: #e2a93b;
+
+}
+
+
+/* =====================================================
+   MAP LEGEND
+===================================================== */
+
+.map-legend {
+
+  position: absolute;
+
+  left: 15px;
+
+  bottom: 15px;
+
+  z-index: 500;
+
+  display: flex;
+
+  gap: 14px;
+
+  padding: 9px 12px;
+
+  background:
+    rgba(8, 10, 13, 0.92);
+
+  border: 1px solid #292f36;
+
+  border-radius: 6px;
+
+  color: #aab1b8;
+
+  font-size: 8px;
+
+}
+
+
+.map-legend div {
+
+  display: flex;
+
+  align-items: center;
+
+  gap: 6px;
+
+}
+
+
+.legend-dot {
+
+  width: 7px;
+
+  height: 7px;
+
+  display: inline-block;
+
+  border-radius: 50%;
+
+}
+
+
+.legend-dot.moving {
+
+  background: #39d98a;
+
+}
+
+
+.legend-dot.delayed {
+
+  background: #e2a93b;
+
+}
+
+
+.legend-dot.inactive {
+
+  background: #858e98;
+
+}
+
+
+/* =====================================================
+   VEHICLE POPUP
+===================================================== */
+
+.vehicle-popup {
+
+  min-width: 180px;
+
+  font-family:
+    Inter,
+    system-ui,
+    sans-serif;
+
+  font-size: 11px;
+
+  color: #24282d;
+
+}
+
+
+.vehicle-popup strong {
+
+  display: block;
+
+  margin-bottom: 8px;
+
+  font-size: 13px;
+
+}
+
+
+.vehicle-popup div {
+
+  margin-top: 5px;
+
+}
+
+
+/* =====================================================
+   MAIN VEHICLE PANEL
+===================================================== */
+
+.network-panel {
+
+  background: #0b0e12;
+
+  border: 1px solid #20252b;
+
+  border-radius: 8px;
+
+  overflow: hidden;
+
+}
+
+
+.network-panel-header {
+
+  min-height: 70px;
+
+  padding: 0 15px;
+
+  display: flex;
+
+  align-items: center;
+
+  justify-content: space-between;
+
+  border-bottom: 1px solid #1c2127;
+
+}
+
+
+.network-panel-header span {
+
+  color: #69727c;
+
+  font-size: 8px;
+
+  letter-spacing: 0.8px;
+
+}
+
+
+.network-panel-header h2 {
+
+  margin: 5px 0 0;
+
+  color: #dce1e6;
+
+  font-size: 14px;
+
+  font-weight: 500;
+
+}
+
+
+.refresh-button {
+
+  background: #171b20;
+
+  border: 1px solid #2a3037;
+
+  color: #dce1e7;
+
+  padding: 7px 12px;
+
+  border-radius: 5px;
+
+  cursor: pointer;
+
+  font-size: 9px;
+
+}
+
+
+.refresh-button:hover {
+
+  background: #20252b;
+
+}
+
+
+/* =====================================================
+   VEHICLE LIST
+===================================================== */
+
+.vehicle-location-list {
+
+  padding: 8px;
+
+}
+
+
+.vehicle-location-row {
+
+  display: grid;
+
+  grid-template-columns:
+    1.5fr
+    1fr
+    1fr
+    0.8fr
+    1.2fr;
+
+  align-items: center;
+
+  gap: 15px;
+
+  padding: 15px;
+
+  margin-bottom: 6px;
+
+  background: #0f1216;
+
+  border: 1px solid #20252b;
+
+  border-radius: 6px;
+
+}
+
+
+.vehicle-location-row:hover {
+
+  background: #13171c;
+
+  border-color: #30363e;
+
+}
+
+
+/* =====================================================
+   VEHICLE
+===================================================== */
+
+.vehicle-main {
+
+  display: flex;
+
+  align-items: center;
+
+  gap: 10px;
+
+}
+
+
+.vehicle-symbol {
+
+  width: 28px;
+
+  height: 28px;
+
+  display: flex;
+
+  align-items: center;
+
+  justify-content: center;
+
+  border-radius: 50%;
+
+  color: #39d98a;
+
+  background:
+    rgba(57, 217, 138, 0.08);
+
+  font-size: 9px;
+
+}
+
+
+.vehicle-main strong {
+
+  display: block;
+
+  color: #dfe4e8;
+
+  font-size: 10px;
+
+}
+
+
+.vehicle-main small {
+
+  display: block;
+
+  margin-top: 5px;
+
+  color: #626b75;
+
+  font-size: 7px;
+
+}
+
+
+/* =====================================================
+   LOCATION
+===================================================== */
+
+.location-value span {
+
+  display: block;
+
+  color: #626b75;
+
+  font-size: 7px;
+
+  margin-bottom: 5px;
+
+}
+
+
+.location-value strong {
+
+  color: #cbd1d7;
+
+  font-size: 9px;
+
+  font-weight: 500;
+
+}
+
+
+/* =====================================================
+   STATUS
+===================================================== */
+
+.location-status {
+
+  display: flex;
+
+  flex-direction: column;
+
+  align-items: flex-start;
+
+  gap: 5px;
+
+}
+
+
+.status {
+
+  padding: 4px 6px;
+
+  border-radius: 3px;
+
+  background: #1a1e23;
+
+  color: #858e98;
+
+  font-size: 7px;
+
+  letter-spacing: 0.5px;
+
+}
+
+
+.status.moving {
+
+  color: #39d98a;
+
+  background:
+    rgba(57, 217, 138, 0.08);
+
+}
+
+
+.status.delayed {
+
+  color: #e2a93b;
+
+  background:
+    rgba(226, 169, 59, 0.1);
+
+}
+
+
+/* =====================================================
+   NETWORK INFO
+===================================================== */
+
+.network-info-panel {
+
+  display: grid;
+
+  grid-template-columns:
+    repeat(3, 1fr);
+
+  margin-top: 14px;
+
+  border: 1px solid #20252b;
+
+  border-radius: 8px;
+
+  overflow: hidden;
+
+}
+
+
+.network-info-panel div {
+
+  padding: 15px;
+
+  background: #0c0f13;
+
+  border-right: 1px solid #20252b;
+
+}
+
+
+.network-info-panel div:last-child {
+
+  border-right: none;
+
+}
+
+
+.network-info-panel span {
+
+  display: block;
+
+  color: #626b75;
+
+  font-size: 7px;
+
+  margin-bottom: 7px;
+
+}
+
+
+.network-info-panel strong {
+
+  color: #cbd1d7;
+
+  font-size: 9px;
+
+  display: flex;
+
+  align-items: center;
+
+  gap: 7px;
+
+}
+
+
+.network-info-panel .status-dot {
+
+  width: 6px;
+
+  height: 6px;
+
+  display: inline-block;
+
+  border-radius: 50%;
+
+  background: #39d98a;
+
+}
+
+
+/* =====================================================
+   EMPTY
+===================================================== */
+
+.network-empty {
+
+  padding: 50px;
+
+  text-align: center;
+
+  color: #626b75;
+
+  font-size: 9px;
+
+}
+
+
+/* =====================================================
+   LOADING
+===================================================== */
+
+.live-network-loading {
+
+  padding: 60px;
+
+  color: #39d98a;
+
+  text-align: center;
+
+  font-size: 10px;
+
+}
+
+
+/* =====================================================
+   ERROR
+===================================================== */
+
+.live-network-error {
+
+  padding: 50px;
+
+}
+
+
+.live-network-error h2 {
+
+  color: #dce1e7;
+
+  font-size: 16px;
+
+}
+
+
+.live-network-error p {
+
+  color: #e45858;
+
+  font-size: 10px;
+
+}
+
+
+.live-network-error button {
+
+  background: #171b20;
+
+  border: 1px solid #2a3037;
+
+  color: #dce1e7;
+
+  padding: 7px 12px;
+
+  border-radius: 5px;
+
+  cursor: pointer;
+
+}
+
+
+/* =====================================================
+   RESPONSIVE
+===================================================== */
+
+@media (max-width: 950px) {
+
+  .vehicle-location-row {
+
+    grid-template-columns:
+      1fr 1fr;
+
+  }
+
+
+  .network-summary {
+
+    grid-template-columns:
+      repeat(2, 1fr);
+
+  }
+
+
+  .network-summary-card:nth-child(2) {
+
+    border-right: none;
+
+  }
+
+}
+
+
+@media (max-width: 650px) {
+
+  .live-network-page {
+
+    padding: 15px;
+
+  }
+
+
+  .live-network-header {
+
+    display: block;
+
+  }
+
+
+  .live-network-count {
+
+    margin-top: 10px;
+
+  }
+
+
+  .network-summary {
+
+    grid-template-columns:
+      1fr 1fr;
+
+  }
+
+
+  .vehicle-location-row {
+
+    grid-template-columns:
+      1fr;
+
+  }
+
+
+  .network-info-panel {
+
+    grid-template-columns:
+      1fr;
+
+  }
+
+
+  .network-info-panel div {
+
+    border-right: none;
+
+    border-bottom: 1px solid #20252b;
+
+  }
+
+
+  .network-info-panel div:last-child {
+
+    border-bottom: none;
+
+  }
+
+
+  .gps-map {
+
+    height: 400px;
+
+  }
+
+
+  .gps-map-header {
+
+    align-items: flex-start;
+
+    flex-direction: column;
+
+    justify-content: center;
+
+    gap: 8px;
+
+  }
+
+
+  .map-legend {
+
+    flex-direction: column;
+
+    gap: 7px;
+
+  }
+
+}

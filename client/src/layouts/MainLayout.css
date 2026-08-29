@@ -1,0 +1,405 @@
+/* =========================================================
+   NER-LINK MAIN APPLICATION SHELL
+========================================================= */
+
+.app-shell {
+  min-height: 100vh;
+  display: flex;
+  background: #080a0d;
+  color: #dce1e7;
+  font-family: Inter, system-ui, sans-serif;
+}
+
+
+/* =========================================================
+   SIDEBAR
+========================================================= */
+
+.app-shell .sidebar {
+  width: 190px;
+  min-height: 100vh;
+
+  background: #090b0e;
+  border-right: 1px solid #20242a;
+
+  display: flex;
+  flex-direction: column;
+
+  flex-shrink: 0;
+
+  position: sticky;
+  top: 0;
+
+  height: 100vh;
+
+  z-index: 1000;
+}
+
+
+/* =========================================================
+   SIDEBAR BRAND
+========================================================= */
+
+.app-shell .brand {
+  height: 70px;
+
+  padding: 0 16px;
+
+  display: flex;
+  align-items: center;
+
+  gap: 10px;
+
+  border-bottom: 1px solid #181c21;
+
+  flex-shrink: 0;
+}
+
+.app-shell .brand-logo {
+  width: 30px;
+  height: 30px;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  background: #f1f3f5;
+  color: #080a0d;
+
+  border-radius: 6px;
+
+  font-size: 9px;
+  font-weight: 800;
+
+  flex-shrink: 0;
+}
+
+.app-shell .brand h2 {
+  margin: 0;
+
+  color: #e7ebef;
+
+  font-size: 12px;
+  line-height: 1.2;
+  font-weight: 600;
+}
+
+.app-shell .brand span {
+  display: block;
+
+  margin-top: 3px;
+
+  color: #6f7883;
+
+  font-size: 8px;
+  line-height: 1;
+}
+
+
+/* =========================================================
+   PLATFORM TITLE
+========================================================= */
+
+.app-shell .menu-title {
+  padding: 20px 16px 9px;
+
+  color: #69717c;
+
+  font-size: 8px;
+  letter-spacing: 1.5px;
+
+  font-weight: 500;
+}
+
+
+/* =========================================================
+   SIDEBAR MENU
+========================================================= */
+
+.app-shell .sidebar-menu {
+  padding: 0 9px;
+
+  display: flex;
+  flex-direction: column;
+
+  gap: 2px;
+
+  position: relative;
+
+  z-index: 1001;
+}
+
+
+/* =========================================================
+   NAVIGATION LINKS
+========================================================= */
+
+.app-shell .menu-item {
+  width: 100%;
+  height: 36px;
+
+  box-sizing: border-box;
+
+  padding: 0 10px;
+
+  display: flex;
+  align-items: center;
+
+  gap: 10px;
+
+  color: #747d88;
+
+  background: transparent;
+
+  border-radius: 6px;
+
+  font-size: 10px;
+  font-weight: 400;
+
+  text-decoration: none;
+
+  cursor: pointer;
+
+  transition:
+    background 0.18s ease,
+    color 0.18s ease;
+
+  position: relative;
+
+  z-index: 1002;
+
+  user-select: none;
+}
+
+
+/* ICON */
+
+.app-shell .menu-item > span {
+  width: 15px;
+
+  min-width: 15px;
+
+  display: inline-flex;
+
+  align-items: center;
+  justify-content: center;
+
+  color: #69737d;
+
+  font-size: 11px;
+
+  text-align: center;
+
+  transition: color 0.18s ease;
+}
+
+
+/* HOVER */
+
+.app-shell .menu-item:hover {
+  background: #15181d;
+
+  color: #dce1e7;
+
+  text-decoration: none;
+}
+
+.app-shell .menu-item:hover > span {
+  color: #aeb7bf;
+}
+
+
+/* ACTIVE */
+
+.app-shell .menu-item.active {
+  background: #202328;
+
+  color: #f1f3f5;
+
+  text-decoration: none;
+}
+
+.app-shell .menu-item.active > span {
+  color: #dce1e7;
+}
+
+
+/* REMOVE DEFAULT LINK STYLING */
+
+.app-shell .menu-item:visited,
+.app-shell .menu-item:link,
+.app-shell .menu-item:active {
+  text-decoration: none;
+}
+
+
+/* =========================================================
+   SIDEBAR BOTTOM
+========================================================= */
+
+.app-shell .sidebar-bottom {
+  margin-top: auto;
+
+  padding: 16px;
+
+  border-top: 1px solid #181c21;
+
+  flex-shrink: 0;
+}
+
+.app-shell .system-status {
+  display: flex;
+  align-items: center;
+
+  color: #7d8792;
+
+  font-size: 9px;
+}
+
+.app-shell .status-dot {
+  width: 6px;
+  height: 6px;
+
+  display: inline-block;
+
+  border-radius: 50%;
+
+  background: #39d98a;
+
+  margin-right: 7px;
+
+  box-shadow: 0 0 7px rgba(57, 217, 138, 0.35);
+}
+
+
+/* =========================================================
+   MAIN APPLICATION AREA
+========================================================= */
+
+.app-main {
+  flex: 1;
+
+  min-width: 0;
+  min-height: 100vh;
+
+  display: flex;
+  flex-direction: column;
+
+  background: #080a0d;
+}
+
+
+/* =========================================================
+   TOP HEADER
+========================================================= */
+
+.main-header {
+  height: 58px;
+
+  padding: 0 22px;
+
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+
+  background: #090b0e;
+
+  border-bottom: 1px solid #20242a;
+
+  flex-shrink: 0;
+}
+
+
+/* =========================================================
+   MAIN BRAND
+========================================================= */
+
+.main-brand {
+  display: flex;
+  align-items: center;
+
+  gap: 10px;
+}
+
+.main-brand h2 {
+  margin: 0;
+
+  color: #e7ebef;
+
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.main-brand span {
+  color: #69727c;
+
+  font-size: 8px;
+}
+
+
+/* =========================================================
+   MAIN CONTENT
+========================================================= */
+
+.main-content {
+  flex: 1;
+
+  min-width: 0;
+
+  background: #080a0d;
+}
+
+
+/* =========================================================
+   RESPONSIVE
+========================================================= */
+
+@media (max-width: 800px) {
+
+  .app-shell .sidebar {
+    width: 175px;
+  }
+
+  .main-header {
+    padding: 0 15px;
+  }
+
+}
+
+
+@media (max-width: 650px) {
+
+  .app-shell .sidebar {
+    width: 165px;
+  }
+
+  .app-shell .brand {
+    padding: 0 12px;
+  }
+
+  .app-shell .menu-title {
+    padding-left: 12px;
+  }
+
+  .app-shell .sidebar-menu {
+    padding: 0 7px;
+  }
+
+}
+
+
+@media (max-width: 600px) {
+
+  .app-shell .sidebar {
+    display: none;
+  }
+
+  .main-header {
+    padding: 0 14px;
+  }
+
+  .main-brand span {
+    display: none;
+  }
+
+}
