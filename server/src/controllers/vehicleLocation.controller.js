@@ -1,7 +1,7 @@
 const {
   getAllVehicleLocations,
   getVehicleLocations,
-} = require("../models/vehiclelocation.model");
+} = require("../models/vehicleLocation.model");
 
 // ========================================
 // GET ALL VEHICLE LOCATIONS
