@@ -1,3 +1,4 @@
+const path = require("path");
 const express = require("express");
 const cors = require("cors");
 const morgan = require("morgan");
@@ -8,6 +9,7 @@ const authRoutes = require("./routes/auth.routes");
 const districtRoutes = require("./routes/district.routes");
 const roadRoutes = require("./routes/road.routes");
 const incidentRoutes = require("./routes/incident.routes");
+const fieldReportRoutes = require("./routes/fieldReport.routes");
 const vehicleRoutes = require("./routes/vehicle.routes");
 const vehicleLocationRoutes = require("./routes/vehicleLocation.routes");
 const deliveryRoutes = require("./routes/delivery.routes");
@@ -17,6 +19,12 @@ const alertRoutes = require("./routes/alert.routes");
 const notificationRoutes = require("./routes/notification.routes");
 
 const app = express();
+app.use(
+  "/uploads",
+  express.static(
+    path.join(__dirname, "../uploads")
+  )
+);
 
 // ================================
 // Global Middleware
@@ -48,6 +56,7 @@ app.use("/api/auth", authRoutes);
 app.use("/api/districts", districtRoutes);
 app.use("/api/roads", roadRoutes);
 app.use("/api/incidents", incidentRoutes);
+app.use("/api/field-reports", fieldReportRoutes);
 app.use("/api/vehicles", vehicleRoutes);
 app.use("/api/vehicle-locations", vehicleLocationRoutes);
 app.use("/api/deliveries", deliveryRoutes);

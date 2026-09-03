@@ -1,5 +1,6 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useAuth } from "../context/AuthContext";
+
 import {
   getRoutePredictions,
   getRoutePredictionById,
@@ -25,6 +26,7 @@ function RouteIntelligence() {
   useEffect(() => {
     const loadPredictions = async () => {
       if (!token) {
+        setLoading(false);
         return;
       }
 
@@ -32,25 +34,28 @@ function RouteIntelligence() {
         setLoading(true);
         setError("");
 
-        const response =
-          await getRoutePredictions(token);
+        const response = await getRoutePredictions(token);
 
-        const data = response.data || [];
+        const data = Array.isArray(response)
+          ? response
+          : response.data || [];
 
         setPredictions(data);
 
         if (data.length > 0) {
           setSelectedPrediction(data[0]);
+        } else {
+          setSelectedPrediction(null);
         }
-      } catch (error) {
+      } catch (err) {
         console.error(
           "Route prediction loading failed:",
-          error
+          err
         );
 
         setError(
-          error.message ||
-            "Failed to load route predictions"
+          err.message ||
+            "Failed to load route predictions."
         );
       } finally {
         setLoading(false);
@@ -65,22 +70,27 @@ function RouteIntelligence() {
   // ========================================
 
   const handlePredictionSelect = async (id) => {
+    if (!id) return;
+
     try {
       setDetailsLoading(true);
+      setError("");
 
       const response =
         await getRoutePredictionById(id, token);
 
-      setSelectedPrediction(response.data);
-    } catch (error) {
+      const data = response.data || response;
+
+      setSelectedPrediction(data);
+    } catch (err) {
       console.error(
         "Prediction details loading failed:",
-        error
+        err
       );
 
       setError(
-        error.message ||
-          "Failed to load prediction details"
+        err.message ||
+          "Failed to load prediction details."
       );
     } finally {
       setDetailsLoading(false);
@@ -94,7 +104,8 @@ function RouteIntelligence() {
   const formatProbability = (value) => {
     if (
       value === null ||
-      value === undefined
+      value === undefined ||
+      value === ""
     ) {
       return "—";
     }
@@ -105,12 +116,27 @@ function RouteIntelligence() {
       return value;
     }
 
-    // Handles both 0.78 and 78 formats
     if (number <= 1) {
       return `${Math.round(number * 100)}%`;
     }
 
     return `${Math.round(number)}%`;
+  };
+
+  const getProbabilityPercentage = (value) => {
+    const number = Number(value);
+
+    if (Number.isNaN(number)) {
+      return 0;
+    }
+
+    const percentage =
+      number <= 1 ? number * 100 : number;
+
+    return Math.min(
+      Math.max(percentage, 0),
+      100
+    );
   };
 
   const getRiskClass = (risk) => {
@@ -145,6 +171,47 @@ function RouteIntelligence() {
 
     return parsed.toLocaleString();
   };
+
+  const highRiskCount = useMemo(() => {
+    return predictions.filter((prediction) => {
+      const risk = String(
+        prediction.risk_level || ""
+      ).toUpperCase();
+
+      return (
+        risk === "HIGH" ||
+        risk === "CRITICAL"
+      );
+    }).length;
+  }, [predictions]);
+
+  const delayedCount = useMemo(() => {
+    return predictions.filter((prediction) => {
+      return (
+        Number(
+          prediction.expected_delay_minutes
+        ) > 0
+      );
+    }).length;
+  }, [predictions]);
+
+  const modelVersions = useMemo(() => {
+    return [
+      ...new Set(
+        predictions
+          .map(
+            (prediction) =>
+              prediction.model_version
+          )
+          .filter(Boolean)
+      ),
+    ];
+  }, [predictions]);
+
+  const latestModel =
+    modelVersions.length > 0
+      ? modelVersions[0]
+      : "—";
 
   // ========================================
   // LOADING
@@ -208,8 +275,8 @@ function RouteIntelligence() {
           </h1>
 
           <p>
-            Predictive visibility across
-            logistics routes and delivery
+            AI-assisted disruption forecasting
+            across Northeast India logistics
             corridors.
           </p>
         </div>
@@ -223,6 +290,13 @@ function RouteIntelligence() {
 
       </div>
 
+      {/* NON-BLOCKING ERROR */}
+
+      {error && predictions.length > 0 && (
+        <div className="route-inline-error">
+          {error}
+        </div>
+      )}
 
       {/* SUMMARY */}
 
@@ -244,18 +318,7 @@ function RouteIntelligence() {
           </span>
 
           <strong>
-            {
-              predictions.filter((prediction) => {
-                const risk = String(
-                  prediction.risk_level || ""
-                ).toUpperCase();
-
-                return (
-                  risk === "HIGH" ||
-                  risk === "CRITICAL"
-                );
-              }).length
-            }
+            {highRiskCount}
           </strong>
         </div>
 
@@ -265,14 +328,7 @@ function RouteIntelligence() {
           </span>
 
           <strong>
-            {
-              predictions.filter(
-                (prediction) =>
-                  Number(
-                    prediction.expected_delay_minutes
-                  ) > 0
-              ).length
-            }
+            {delayedCount}
           </strong>
         </div>
 
@@ -282,13 +338,11 @@ function RouteIntelligence() {
           </span>
 
           <strong className="model-value">
-            {predictions[0]?.model_version ||
-              "—"}
+            {latestModel}
           </strong>
         </div>
 
       </div>
-
 
       {/* MAIN GRID */}
 
@@ -299,17 +353,18 @@ function RouteIntelligence() {
         <section className="route-panel">
 
           <div className="route-panel-header">
+
             <div>
               <span>
-                PREDICTION RECORDS
+                NORTHEAST INDIA
               </span>
 
               <h2>
                 Route Predictions
               </h2>
             </div>
-          </div>
 
+          </div>
 
           <div className="prediction-list">
 
@@ -328,6 +383,7 @@ function RouteIntelligence() {
 
               return (
                 <button
+                  type="button"
                   className={`prediction-row ${
                     isSelected
                       ? "selected"
@@ -391,12 +447,12 @@ function RouteIntelligence() {
 
         </section>
 
-
         {/* DETAILS */}
 
         <section className="route-panel details-panel">
 
           <div className="route-panel-header">
+
             <div>
               <span>
                 PREDICTION ANALYSIS
@@ -412,8 +468,8 @@ function RouteIntelligence() {
                 Loading...
               </span>
             )}
-          </div>
 
+          </div>
 
           {selectedPrediction ? (
 
@@ -428,6 +484,7 @@ function RouteIntelligence() {
                 </span>
 
                 <div>
+
                   <strong>
                     {selectedPrediction.source ||
                       "Unknown"}
@@ -441,16 +498,17 @@ function RouteIntelligence() {
                     {selectedPrediction.destination ||
                       "Unknown"}
                   </strong>
+
                 </div>
 
               </div>
-
 
               {/* RISK */}
 
               <div className="risk-section">
 
                 <div className="risk-header">
+
                   <span>
                     DISRUPTION PROBABILITY
                   </span>
@@ -464,34 +522,22 @@ function RouteIntelligence() {
                       selectedPrediction.disruption_probability
                     )}
                   </strong>
+
                 </div>
 
                 <div className="probability-bar">
+
                   <div
                     style={{
-                      width: `${
-                        Math.min(
-                          Math.max(
-                            Number(
-                              selectedPrediction.disruption_probability
-                            ) <= 1
-                              ? Number(
-                                  selectedPrediction.disruption_probability
-                                ) * 100
-                              : Number(
-                                  selectedPrediction.disruption_probability
-                                ),
-                            0
-                          ),
-                          100
-                        )
-                      }%`,
+                      width: `${getProbabilityPercentage(
+                        selectedPrediction.disruption_probability
+                      )}%`,
                     }}
                   ></div>
+
                 </div>
 
               </div>
-
 
               {/* METRICS */}
 
@@ -514,7 +560,6 @@ function RouteIntelligence() {
 
                 </div>
 
-
                 <div className="detail-card">
 
                   <span>
@@ -535,7 +580,6 @@ function RouteIntelligence() {
 
                 </div>
 
-
                 <div className="detail-card">
 
                   <span>
@@ -548,7 +592,6 @@ function RouteIntelligence() {
                   </strong>
 
                 </div>
-
 
                 <div className="detail-card">
 
@@ -564,7 +607,6 @@ function RouteIntelligence() {
                 </div>
 
               </div>
-
 
               {/* IDENTIFIERS */}
 
@@ -603,7 +645,6 @@ function RouteIntelligence() {
                 </div>
 
               </div>
-
 
               {/* TIMESTAMPS */}
 

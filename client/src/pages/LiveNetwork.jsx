@@ -1,13 +1,12 @@
 import { useEffect, useMemo, useState } from "react";
-
 import {
   MapContainer,
   TileLayer,
   Marker,
   Popup,
+  Polygon,
   useMap,
 } from "react-leaflet";
-
 import L from "leaflet";
 
 import { useAuth } from "../context/AuthContext";
@@ -16,1147 +15,392 @@ import { getVehicleLocations } from "../services/vehicleLocation.service";
 import "leaflet/dist/leaflet.css";
 import "./LiveNetwork.css";
 
+/* =========================================================
+   NORTHEAST INDIA
+   ========================================================= */
 
-// =====================================================
-// NORTHEAST INDIA MAP CENTER
-// =====================================================
+const NORTHEAST_CENTER = [25.95, 94.2];
 
-const NORTHEAST_CENTER = [26.2, 92.9];
+const NORTHEAST_BOUNDS = [
+  [21.5, 88.0],
+  [30.0, 98.0],
+];
 
+/*
+  Initial view is deliberately tighter than the maximum bounds.
+*/
+const INITIAL_BOUNDS = [
+  [22.8, 88.9],
+  [29.7, 97.5],
+];
 
-// =====================================================
-// CREATE VEHICLE MARKER
-// =====================================================
+/*
+  Northeast states.
+  These are used as the visible geographic mask.
+*/
+const NORTHEAST_STATES = [
+  {
+    name: "Sikkim",
+    positions: [
+      [27.58, 88.02],
+      [28.13, 88.68],
+      [27.99, 89.12],
+      [27.42, 88.91],
+      [27.08, 88.62],
+      [27.15, 88.19],
+    ],
+  },
 
-const createVehicleIcon = (status) => {
+  {
+    name: "Arunachal Pradesh",
+    positions: [
+      [28.35, 92.00],
+      [29.48, 94.70],
+      [29.50, 97.10],
+      [28.20, 97.45],
+      [27.10, 96.20],
+      [27.05, 94.90],
+      [27.50, 93.80],
+      [27.20, 92.60],
+    ],
+  },
 
-  const normalizedStatus =
-    String(status || "").toUpperCase();
+  {
+    name: "Assam",
+    positions: [
+      [27.95, 89.70],
+      [28.25, 92.10],
+      [27.45, 93.55],
+      [27.10, 95.10],
+      [27.20, 96.10],
+      [26.40, 96.05],
+      [25.55, 95.20],
+      [24.90, 94.10],
+      [24.45, 92.50],
+      [24.65, 91.00],
+      [25.20, 89.85],
+      [26.00, 89.60],
+    ],
+  },
 
-  let className = "vehicle-marker";
+  {
+    name: "Nagaland",
+    positions: [
+      [27.05, 93.35],
+      [27.20, 95.55],
+      [26.65, 95.95],
+      [25.70, 95.85],
+      [25.20, 95.10],
+      [25.25, 93.60],
+      [26.00, 93.30],
+    ],
+  },
 
-  if (normalizedStatus.includes("DELAY")) {
+  {
+    name: "Manipur",
+    positions: [
+      [25.65, 93.15],
+      [25.70, 94.95],
+      [24.80, 95.35],
+      [23.85, 94.45],
+      [24.00, 93.20],
+      [24.85, 93.00],
+    ],
+  },
 
-    className += " vehicle-marker-delayed";
+  {
+    name: "Mizoram",
+    positions: [
+      [24.55, 92.25],
+      [24.05, 93.05],
+      [23.55, 93.35],
+      [22.90, 92.70],
+      [22.45, 92.25],
+      [22.95, 91.60],
+      [23.75, 92.00],
+    ],
+  },
 
-  } else if (
-    normalizedStatus.includes("MOV") ||
-    normalizedStatus === "ACTIVE" ||
-    normalizedStatus === "IN_TRANSIT"
-  ) {
+  {
+    name: "Tripura",
+    positions: [
+      [24.55, 91.60],
+      [24.00, 92.15],
+      [23.45, 92.05],
+      [22.95, 91.45],
+      [23.45, 91.05],
+      [24.10, 91.10],
+    ],
+  },
 
-    className += " vehicle-marker-moving";
+  {
+    name: "Meghalaya",
+    positions: [
+      [26.10, 89.80],
+      [26.25, 91.00],
+      [25.90, 92.15],
+      [25.35, 92.55],
+      [25.00, 91.75],
+      [25.05, 90.55],
+      [25.45, 89.90],
+    ],
+  },
+];
 
-  }
+/* =========================================================
+   MAP CONTROLLER
+   ========================================================= */
 
-  return L.divIcon({
-
-    className: "",
-
-    html: `
-      <div class="${className}">
-        <span></span>
-      </div>
-    `,
-
-    iconSize: [20, 20],
-
-    iconAnchor: [10, 10],
-
-    popupAnchor: [0, -10],
-
-  });
-
-};
-
-
-// =====================================================
-// MAP CONTROLLER
-// Automatically adjusts map to vehicle locations
-// =====================================================
-
-function MapController({ locations }) {
-
+function MapController() {
   const map = useMap();
 
   useEffect(() => {
+    map.setMaxBounds(NORTHEAST_BOUNDS);
+    map.options.maxBoundsViscosity = 1;
 
-    const validLocations =
-      locations.filter((location) => {
-
-        const latitude =
-          location.latitude ??
-          location.lat;
-
-        const longitude =
-          location.longitude ??
-          location.lng ??
-          location.lon;
-
-        return (
-          Number.isFinite(Number(latitude)) &&
-          Number.isFinite(Number(longitude))
-        );
-
-      });
-
-
-    if (!validLocations.length) {
-      return;
-    }
-
-
-    const bounds =
-      validLocations.map((location) => {
-
-        const latitude =
-          Number(
-            location.latitude ??
-            location.lat
-          );
-
-        const longitude =
-          Number(
-            location.longitude ??
-            location.lng ??
-            location.lon
-          );
-
-        return [
-          latitude,
-          longitude,
-        ];
-
-      });
-
-
-    map.fitBounds(bounds, {
-
-      padding: [40, 40],
-
-      maxZoom: 10,
-
+    map.fitBounds(INITIAL_BOUNDS, {
+      padding: [10, 10],
+      animate: false,
     });
-
-  }, [locations, map]);
-
+  }, [map]);
 
   return null;
-
 }
 
+/* =========================================================
+   VEHICLE ICON
+   ========================================================= */
 
-// =====================================================
-// LIVE NETWORK PAGE
-// =====================================================
+const createVehicleIcon = (status) => {
+  const isDelayed =
+    String(status || "").toLowerCase().includes("delay");
 
-function LiveNetwork() {
+  const isStopped =
+    String(status || "").toLowerCase().includes("stop");
 
+  let className = "ner-vehicle-marker";
+
+  if (isDelayed) {
+    className += " ner-vehicle-delayed";
+  } else if (isStopped) {
+    className += " ner-vehicle-stopped";
+  } else {
+    className += " ner-vehicle-moving";
+  }
+
+  return L.divIcon({
+    className: "ner-vehicle-icon-wrapper",
+    html: `
+      <div class="${className}">
+        <span class="ner-vehicle-dot"></span>
+      </div>
+    `,
+    iconSize: [18, 18],
+    iconAnchor: [9, 9],
+    popupAnchor: [0, -10],
+  });
+};
+
+/* =========================================================
+   SAFE COORDINATE HELPERS
+   ========================================================= */
+
+const getLatitude = (item) => {
+  const value =
+    item?.latitude ??
+    item?.lat ??
+    item?.location?.latitude ??
+    item?.location?.lat;
+
+  const number = Number(value);
+
+  return Number.isFinite(number) ? number : null;
+};
+
+const getLongitude = (item) => {
+  const value =
+    item?.longitude ??
+    item?.lng ??
+    item?.lon ??
+    item?.location?.longitude ??
+    item?.location?.lng ??
+    item?.location?.lon;
+
+  const number = Number(value);
+
+  return Number.isFinite(number) ? number : null;
+};
+
+const isInsideNortheastBounds = (lat, lng) => {
+  return (
+    lat >= NORTHEAST_BOUNDS[0][0] &&
+    lat <= NORTHEAST_BOUNDS[1][0] &&
+    lng >= NORTHEAST_BOUNDS[0][1] &&
+    lng <= NORTHEAST_BOUNDS[1][1]
+  );
+};
+
+/* =========================================================
+   LIVE NETWORK
+   ========================================================= */
+
+export default function LiveNetwork() {
   const { token } = useAuth();
 
-
-  // ===================================================
-  // STATE
-  // ===================================================
-
-  const [locations, setLocations] =
-    useState([]);
-
-  const [loading, setLoading] =
-    useState(true);
-
-  const [error, setError] =
-    useState("");
-
-  const [lastUpdated, setLastUpdated] =
-    useState(null);
-
-
-  // ===================================================
-  // LOAD VEHICLE GPS DATA
-  // ===================================================
-
-  const loadLocations = async () => {
-
-    if (!token) {
-      return;
-    }
-
-
-    try {
-
-      setError("");
-
-      const response =
-        await getVehicleLocations(token);
-
-      const data =
-        response.data || [];
-
-      setLocations(data);
-
-      setLastUpdated(
-        new Date()
-      );
-
-    } catch (error) {
-
-      console.error(
-        "Vehicle locations loading failed:",
-        error
-      );
-
-      setError(
-        error.message ||
-        "Failed to load vehicle locations"
-      );
-
-    } finally {
-
-      setLoading(false);
-
-    }
-
-  };
-
-
-  // ===================================================
-  // INITIAL GPS DATA LOAD
-  // ===================================================
+  const [locations, setLocations] = useState([]);
+  const [error, setError] = useState("");
 
   useEffect(() => {
+    let mounted = true;
+
+    const loadLocations = async () => {
+      if (!token) {
+        return;
+      }
+
+      try {
+        const response = await getVehicleLocations(token);
+
+        const data = Array.isArray(response)
+          ? response
+          : Array.isArray(response?.data)
+            ? response.data
+            : [];
+
+        if (mounted) {
+          setLocations(data);
+          setError("");
+        }
+      } catch (err) {
+        if (mounted) {
+          setError(err?.message || "Unable to load vehicle locations.");
+        }
+      }
+    };
 
     loadLocations();
 
-  }, [token]);
-
-
-  // ===================================================
-  // AUTO REFRESH
-  // Refresh GPS data every 5 seconds
-  // ===================================================
-
-  useEffect(() => {
-
-    if (!token) {
-      return;
-    }
-
-
-    const interval =
-      setInterval(() => {
-
-        loadLocations();
-
-      }, 5000);
-
+    const interval = setInterval(loadLocations, 5000);
 
     return () => {
-
+      mounted = false;
       clearInterval(interval);
-
     };
-
   }, [token]);
 
-
-  // ===================================================
-  // VALID GPS LOCATIONS
-  // ===================================================
-
-  const validLocations =
-    useMemo(() => {
-
-      return locations.filter(
-        (location) => {
-
-          const latitude =
-            Number(
-              location.latitude ??
-              location.lat
-            );
-
-          const longitude =
-            Number(
-              location.longitude ??
-              location.lng ??
-              location.lon
-            );
-
-
-          return (
-            Number.isFinite(latitude) &&
-            Number.isFinite(longitude)
-          );
-
-        }
-      );
-
-    }, [locations]);
-
-
-  // ===================================================
-  // MOVING VEHICLES
-  // ===================================================
-
-  const movingVehicles =
-    useMemo(() => {
-
-      return locations.filter(
-        (location) => {
-
-          const status =
-            String(
-              location.status ||
-              location.vehicle_status ||
-              ""
-            ).toUpperCase();
-
-
-          return (
-            status.includes("MOV") ||
-            status === "IN_TRANSIT" ||
-            status === "ACTIVE"
-          );
-
-        }
-      );
-
-    }, [locations]);
-
-
-  // ===================================================
-  // DELAYED VEHICLES
-  // ===================================================
-
-  const delayedVehicles =
-    useMemo(() => {
-
-      return locations.filter(
-        (location) => {
-
-          const status =
-            String(
-              location.status ||
-              location.vehicle_status ||
-              ""
-            ).toUpperCase();
-
-
-          return status.includes(
-            "DELAY"
-          );
-
-        }
-      );
-
-    }, [locations]);
-
-
-  // ===================================================
-  // UNIQUE VEHICLES
-  // ===================================================
-
-  const uniqueVehicles =
-    useMemo(() => {
-
-      const ids = new Set();
-
-
-      locations.forEach(
-        (location) => {
-
-          if (location.vehicle_id) {
-
-            ids.add(
-              location.vehicle_id
-            );
-
-          } else if (
-            location.vehicleId
-          ) {
-
-            ids.add(
-              location.vehicleId
-            );
-
-          }
-
-        }
-      );
-
-
-      return ids.size;
-
-    }, [locations]);
-
-
-  // ===================================================
-  // LOADING SCREEN
-  // ===================================================
-
-  if (loading) {
-
-    return (
-
-      <div className="live-network-page">
-
-        <div className="live-network-loading">
-
-          <span></span>
-
-          Connecting to NER GPS network...
-
-        </div>
-
-      </div>
-
-    );
-
-  }
-
-
-  // ===================================================
-  // ERROR SCREEN
-  // ===================================================
-
-  if (error) {
-
-    return (
-
-      <div className="live-network-page">
-
-        <div className="live-network-error">
-
-          <h2>
-            Unable to load Live Network
-          </h2>
-
-          <p>
-            {error}
-          </p>
-
-          <button
-            onClick={loadLocations}
-          >
-            Retry
-          </button>
-
-        </div>
-
-      </div>
-
-    );
-
-  }
-
-
-  // ===================================================
-  // MAIN PAGE
-  // ===================================================
+  /*
+    Only locations geographically inside the NER bounding region
+    are allowed to become markers.
+  */
+  const visibleLocations = useMemo(() => {
+    return locations.filter((item) => {
+      const lat = getLatitude(item);
+      const lng = getLongitude(item);
+
+      if (lat === null || lng === null) {
+        return false;
+      }
+
+      return isInsideNortheastBounds(lat, lng);
+    });
+  }, [locations]);
 
   return (
+    <div className="live-network-map-page">
+      <MapContainer
+        center={NORTHEAST_CENTER}
+        zoom={7}
+        minZoom={6}
+        maxZoom={11}
+        maxBounds={NORTHEAST_BOUNDS}
+        maxBoundsViscosity={1}
+        worldCopyJump={false}
+        zoomControl={true}
+        attributionControl={true}
+        className="live-network-map"
+      >
+        <MapController />
 
-    <div className="live-network-page">
+        <TileLayer
+          attribution='&copy; OpenStreetMap contributors'
+          url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+          noWrap={true}
+        />
 
+        {/* =================================================
+            NORTHEAST STATE MASK / BOUNDARIES
 
-      {/* =================================================
-          HEADER
-      ================================================= */}
+            These polygons visually restrict the useful map
+            area to the eight Northeast states.
+           ================================================= */}
 
-      <div className="live-network-header">
+        {NORTHEAST_STATES.map((state) => (
+          <Polygon
+            key={state.name}
+            positions={state.positions}
+            pathOptions={{
+              color: "#00e5a8",
+              weight: 1,
+              opacity: 0.35,
+              fillColor: "#00e5a8",
+              fillOpacity: 0.025,
+            }}
+          />
+        ))}
 
-        <div>
+        {/* =================================================
+            LIVE VEHICLE MARKERS
+           ================================================= */}
 
-          <div className="live-network-label">
+        {visibleLocations.map((vehicle, index) => {
+          const lat = getLatitude(vehicle);
+          const lng = getLongitude(vehicle);
 
-            <span></span>
+          const vehicleId =
+            vehicle?.vehicle_id ??
+            vehicle?.vehicleId ??
+            vehicle?.id ??
+            `vehicle-${index}`;
 
-            LIVE GPS NETWORK
+          const status =
+            vehicle?.status ??
+            vehicle?.vehicle_status ??
+            "Moving";
 
-          </div>
+          return (
+            <Marker
+              key={`${vehicleId}-${index}`}
+              position={[lat, lng]}
+              icon={createVehicleIcon(status)}
+            >
+              <Popup>
+                <div className="ner-vehicle-popup">
+                  <strong>
+                    {vehicle?.vehicle_number ??
+                      vehicle?.vehicleNumber ??
+                      vehicle?.registration_number ??
+                      "Vehicle"}
+                  </strong>
 
+                  <span>
+                    Status: {status}
+                  </span>
 
-          <h1>
-            Northeast India Fleet
-          </h1>
+                  <span>
+                    {lat.toFixed(5)}, {lng.toFixed(5)}
+                  </span>
+                </div>
+              </Popup>
+            </Marker>
+          );
+        })}
+      </MapContainer>
 
-
-          <p>
-            Real-time vehicle visibility
-            across the North Eastern Region.
-          </p>
-
+      {error && (
+        <div className="live-network-map-error">
+          {error}
         </div>
-
-
-        <div className="live-network-count">
-
-          <span className="live-indicator"></span>
-
-          LIVE
-
-          <span className="record-count">
-
-            {locations.length} vehicles
-
-          </span>
-
-        </div>
-
-      </div>
-
-
-      {/* =================================================
-          SUMMARY
-      ================================================= */}
-
-      <div className="network-summary">
-
-
-        <div className="network-summary-card">
-
-          <span>
-            GPS RECORDS
-          </span>
-
-          <strong>
-            {locations.length}
-          </strong>
-
-        </div>
-
-
-        <div className="network-summary-card">
-
-          <span>
-            VEHICLES
-          </span>
-
-          <strong>
-            {uniqueVehicles ||
-              locations.length}
-          </strong>
-
-        </div>
-
-
-        <div className="network-summary-card">
-
-          <span>
-            MOVING
-          </span>
-
-          <strong className="moving-number">
-
-            {movingVehicles.length}
-
-          </strong>
-
-        </div>
-
-
-        <div className="network-summary-card">
-
-          <span>
-            DELAYED
-          </span>
-
-          <strong className="delayed-number">
-
-            {delayedVehicles.length}
-
-          </strong>
-
-        </div>
-
-
-      </div>
-
-
-      {/* =================================================
-          GPS MAP
-      ================================================= */}
-
-      <section className="gps-map-panel">
-
-
-        {/* MAP HEADER */}
-
-        <div className="gps-map-header">
-
-          <div>
-
-            <span>
-              REGIONAL GPS VISUALIZATION
-            </span>
-
-            <h2>
-              Northeast India
-            </h2>
-
-          </div>
-
-
-          <div className="map-status">
-
-            <span></span>
-
-            GPS STREAM ACTIVE
-
-          </div>
-
-        </div>
-
-
-        {/* MAP */}
-
-        <div className="gps-map">
-
-
-          <MapContainer
-
-            center={NORTHEAST_CENTER}
-
-            zoom={6}
-
-            scrollWheelZoom={true}
-
-            className="leaflet-map"
-
-          >
-
-
-            {/* OpenStreetMap */}
-
-            <TileLayer
-
-              attribution='&copy; OpenStreetMap contributors'
-
-              url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-
-            />
-
-
-            {/* Automatically fit vehicles */}
-
-            <MapController
-              locations={validLocations}
-            />
-
-
-            {/* ==========================================
-                VEHICLE MARKERS
-            ========================================== */}
-
-            {validLocations.map(
-              (location, index) => {
-
-
-                const latitude =
-                  Number(
-                    location.latitude ??
-                    location.lat
-                  );
-
-
-                const longitude =
-                  Number(
-                    location.longitude ??
-                    location.lng ??
-                    location.lon
-                  );
-
-
-                const status =
-                  String(
-                    location.status ||
-                    location.vehicle_status ||
-                    "UNKNOWN"
-                  ).toUpperCase();
-
-
-                const vehicleNumber =
-                  location.vehicle_number ||
-                  location.vehicleNumber ||
-                  location.registration_number ||
-                  `Vehicle ${
-                    location.vehicle_id ||
-                    index + 1
-                  }`;
-
-
-                const speed =
-                  location.speed ??
-                  location.speed_kmph ??
-                  "—";
-
-
-                const timestamp =
-                  location.recorded_at ||
-                  location.timestamp ||
-                  location.created_at;
-
-
-                return (
-
-                  <Marker
-
-                    key={
-                      location.id ||
-                      `${location.vehicle_id}-${index}`
-                    }
-
-                    position={[
-                      latitude,
-                      longitude,
-                    ]}
-
-                    icon={
-                      createVehicleIcon(
-                        status
-                      )
-                    }
-
-                  >
-
-
-                    {/* ==================================
-                        VEHICLE POPUP
-                    ================================== */}
-
-                    <Popup>
-
-                      <div className="vehicle-popup">
-
-                        <strong>
-                          {vehicleNumber}
-                        </strong>
-
-
-                        <div>
-                          Vehicle ID:{" "}
-                          {location.vehicle_id ||
-                            location.vehicleId ||
-                            "—"}
-                        </div>
-
-
-                        <div>
-                          Status:{" "}
-                          <b>
-                            {status}
-                          </b>
-                        </div>
-
-
-                        <div>
-                          Speed:{" "}
-                          {speed !== "—"
-                            ? `${speed} km/h`
-                            : "—"}
-                        </div>
-
-
-                        <div>
-                          Latitude:{" "}
-                          {latitude.toFixed(5)}
-                        </div>
-
-
-                        <div>
-                          Longitude:{" "}
-                          {longitude.toFixed(5)}
-                        </div>
-
-
-                        {timestamp && (
-
-                          <div>
-
-                            Updated:{" "}
-
-                            {new Date(
-                              timestamp
-                            ).toLocaleString()}
-
-                          </div>
-
-                        )}
-
-                      </div>
-
-                    </Popup>
-
-                  </Marker>
-
-                );
-
-              }
-            )}
-
-          </MapContainer>
-
-
-          {/* =================================================
-              MAP LEGEND
-          ================================================= */}
-
-          <div className="map-legend">
-
-
-            <div>
-
-              <span
-                className="legend-dot moving"
-              ></span>
-
-              Moving
-
-            </div>
-
-
-            <div>
-
-              <span
-                className="legend-dot delayed"
-              ></span>
-
-              Delayed
-
-            </div>
-
-
-            <div>
-
-              <span
-                className="legend-dot inactive"
-              ></span>
-
-              Other
-
-            </div>
-
-
-          </div>
-
-
-        </div>
-
-      </section>
-
-
-      {/* =================================================
-          VEHICLE POSITION DATA
-      ================================================= */}
-
-      <section className="network-panel">
-
-
-        <div className="network-panel-header">
-
-
-          <div>
-
-            <span>
-              VEHICLE POSITION DATA
-            </span>
-
-
-            <h2>
-              Active Network
-            </h2>
-
-          </div>
-
-
-          <button
-            className="refresh-button"
-            onClick={loadLocations}
-          >
-            Refresh
-          </button>
-
-
-        </div>
-
-
-        {/* ================================================
-            EMPTY STATE
-        ================================================= */}
-
-        {!locations.length ? (
-
-          <div className="network-empty">
-
-            No vehicle GPS records available.
-
-          </div>
-
-        ) : (
-
-
-          <div className="vehicle-location-list">
-
-
-            {locations.map(
-              (location, index) => {
-
-
-                const status =
-                  String(
-                    location.status ||
-                    location.vehicle_status ||
-                    "UNKNOWN"
-                  ).toUpperCase();
-
-
-                const vehicleNumber =
-                  location.vehicle_number ||
-                  location.vehicleNumber ||
-                  location.registration_number ||
-                  `Vehicle ${
-                    location.vehicle_id ||
-                    index + 1
-                  }`;
-
-
-                const latitude =
-                  location.latitude ??
-                  location.lat ??
-                  "—";
-
-
-                const longitude =
-                  location.longitude ??
-                  location.lng ??
-                  location.lon ??
-                  "—";
-
-
-                const speed =
-                  location.speed ??
-                  location.speed_kmph ??
-                  "—";
-
-
-                return (
-
-                  <div
-
-                    className="vehicle-location-row"
-
-                    key={
-                      location.id ||
-                      `${location.vehicle_id}-${index}`
-                    }
-
-                  >
-
-
-                    {/* VEHICLE */}
-
-                    <div className="vehicle-main">
-
-
-                      <div className="vehicle-symbol">
-                        ●
-                      </div>
-
-
-                      <div>
-
-                        <strong>
-                          {vehicleNumber}
-                        </strong>
-
-
-                        <small>
-
-                          Vehicle ID:{" "}
-
-                          {location.vehicle_id ||
-                            location.vehicleId ||
-                            "—"}
-
-                        </small>
-
-                      </div>
-
-
-                    </div>
-
-
-                    {/* LATITUDE */}
-
-                    <div className="location-value">
-
-                      <span>
-                        LATITUDE
-                      </span>
-
-
-                      <strong>
-                        {latitude}
-                      </strong>
-
-                    </div>
-
-
-                    {/* LONGITUDE */}
-
-                    <div className="location-value">
-
-                      <span>
-                        LONGITUDE
-                      </span>
-
-
-                      <strong>
-                        {longitude}
-                      </strong>
-
-                    </div>
-
-
-                    {/* SPEED */}
-
-                    <div className="location-value">
-
-                      <span>
-                        SPEED
-                      </span>
-
-
-                      <strong>
-
-                        {speed !== "—"
-                          ? `${speed} km/h`
-                          : "—"}
-
-                      </strong>
-
-                    </div>
-
-
-                    {/* STATUS */}
-
-                    <div className="location-status">
-
-
-                      <span
-
-                        className={
-
-                          status.includes("DELAY")
-
-                            ? "status delayed"
-
-                            : status.includes("MOV") ||
-                              status === "ACTIVE" ||
-                              status === "IN_TRANSIT"
-
-                            ? "status moving"
-
-                            : "status"
-
-                        }
-
-                      >
-
-                        {status}
-
-                      </span>
-
-
-                    </div>
-
-
-                  </div>
-
-                );
-
-              }
-            )}
-
-          </div>
-
-        )}
-
-      </section>
-
-
-      {/* =================================================
-          NETWORK INFORMATION
-      ================================================= */}
-
-      <section className="network-info-panel">
-
-
-        {/* NETWORK STATUS */}
-
-        <div>
-
-          <span>
-            NETWORK STATUS
-          </span>
-
-
-          <strong>
-
-            <i className="status-dot"></i>
-
-            Operational
-
-          </strong>
-
-        </div>
-
-
-        {/* REGION */}
-
-        <div>
-
-          <span>
-            REGION
-          </span>
-
-
-          <strong>
-            Northeast India
-          </strong>
-
-        </div>
-
-
-        {/* LAST SYNC */}
-
-        <div>
-
-          <span>
-            LAST GPS SYNC
-          </span>
-
-
-          <strong>
-
-            {lastUpdated
-              ? lastUpdated.toLocaleTimeString()
-              : "—"}
-
-          </strong>
-
-        </div>
-
-
-      </section>
-
-
+      )}
     </div>
-
   );
-
 }
-
-
-export default LiveNetwork;

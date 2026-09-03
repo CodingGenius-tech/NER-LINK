@@ -12,6 +12,7 @@ export const getRoutePredictions = async (token) => {
       method: "GET",
       headers: {
         Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json",
       },
     }
   );
@@ -38,6 +39,7 @@ export const getRoutePredictionById = async (id, token) => {
       method: "GET",
       headers: {
         Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json",
       },
     }
   );

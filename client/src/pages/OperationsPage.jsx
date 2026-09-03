@@ -17,6 +17,11 @@ import {
 } from "../services/incident.service";
 
 import {
+  getFieldReports,
+  createFieldReport,
+} from "../services/fieldReport.service";
+
+import {
   getNotifications,
 } from "../services/notification.service";
 
@@ -37,6 +42,7 @@ const emptyData = {
   alerts: [],
   predictions: [],
   incidents: [],
+  fieldReports: [],
   notifications: [],
 };
 
@@ -171,7 +177,7 @@ const configs = {
   "emergency-mode": {
     title: "Emergency Mode",
     subtitle:
-      "Prioritize accessible routes for emergency logistics.",
+      "Coordinate emergency access and priority movement.",
     type: "emergency",
   },
 
@@ -227,12 +233,11 @@ function OperationsPage({ module }) {
 
   const [incidentForm, setIncidentForm] =
     useState({
-      roadId: "",
-      incidentType: "",
-      severity: "MEDIUM",
+      reportType: "",
       description: "",
       latitude: "",
       longitude: "",
+      photo: null,
     });
 
   const [
@@ -260,7 +265,20 @@ function OperationsPage({ module }) {
     const {
       name,
       value,
+      files,
     } = event.target;
+
+    if (name === "photo") {
+      setIncidentForm(
+        (previous) => ({
+          ...previous,
+          photo:
+            files?.[0] || null,
+        })
+      );
+
+      return;
+    }
 
     setIncidentForm(
       (previous) => ({
@@ -289,18 +307,9 @@ function OperationsPage({ module }) {
       return;
     }
 
-    if (!incidentForm.roadId) {
+    if (!incidentForm.reportType) {
       setIncidentError(
-        "Please select a road."
-      );
-      return;
-    }
-
-    if (
-      !incidentForm.incidentType.trim()
-    ) {
-      setIncidentError(
-        "Please enter the incident type."
+        "Please select a report type."
       );
       return;
     }
@@ -356,67 +365,62 @@ function OperationsPage({ module }) {
     try {
       setIncidentSubmitting(true);
 
-      await createIncident(
+      await createFieldReport(
         {
-          roadId: Number(
-            incidentForm.roadId
-          ),
-
-          incidentType:
-            incidentForm.incidentType.trim(),
-
-          severity:
-            incidentForm.severity,
+          reportType: 
+            incidentForm.reportType,
 
           description:
-            incidentForm.description.trim(),
+            incidentForm.description,
 
           latitude,
 
           longitude,
+
+          photo:
+            incidentForm.photo,
         },
         token
       );
 
       setIncidentSuccess(
-        "Incident reported successfully."
+        "Field Report reported successfully."
       );
 
       setIncidentForm({
-        roadId: "",
-        incidentType: "",
-        severity: "MEDIUM",
+        reportType: "",
         description: "",
         latitude: "",
         longitude: "",
+        photo: null,
       });
 
       /* -----------------------------------------------
          Refresh incidents exactly once
       ------------------------------------------------ */
 
-      const incidentsResponse =
-        await getIncidents(token);
+      const reportsResponse =
+        await getFieldReports(token);
 
       setData(
         (previous) => ({
           ...previous,
-          incidents:
+          fieldReports:
             getResponseData(
-              incidentsResponse
+              reportsResponse
             ),
         })
       );
 
     } catch (err) {
       console.error(
-        "Create incident failed:",
+        "Create field report failed:",
         err
       );
 
       setIncidentError(
         err?.message ||
-          "Failed to report incident."
+          "Failed to submit field report."
       );
     } finally {
       setIncidentSubmitting(false);
@@ -634,15 +638,15 @@ function OperationsPage({ module }) {
         else if (
           config.type === "incident"
         ) {
-          const incidentsResponse =
-            await getIncidents(token);
+          const fieldReportResponse =
+            await getFieldReports(token);
 
           result = {
             ...emptyData,
 
-            incidents:
+            fieldReports:
               getResponseData(
-                incidentsResponse
+                fieldReportResponse
               ),
           };
         }
@@ -752,6 +756,10 @@ function OperationsPage({ module }) {
 
   const incidents = safeArray(
     data.incidents
+  );
+
+  const fieldReports = safeArray(
+    data.fieldReports
   );
 
   const notifications = safeArray(
@@ -927,21 +935,32 @@ function OperationsPage({ module }) {
         return [
           [
             "Field Reports",
-            incidents.length,
+            fieldReports.length,
           ],
           [
             "High Severity",
-            incidents.filter(
-              (incident) =>
+            fieldReports.filter(
+              (report) =>
                 [
-                  "HIGH",
-                  "CRITICAL",
+                  "LANDSLIDE",
+                  "FLOOD",
+                  "ROAD_DAMAGE",
+                  "BRIDGE_DAMAGE",
                 ].includes(
                   String(
-                    incident?.severity ||
+                    report?.report_type ||
                       ""
                   ).toUpperCase()
                 )
+            ).length,
+          ],
+          [
+            "Synced",
+            fieldReports.filter(
+              (report) =>
+                String(
+                  report?.sync_status || ""
+                ).toUpperCase() === "SYNCED"
             ).length,
           ],
         ];
@@ -986,6 +1005,7 @@ function OperationsPage({ module }) {
     alerts,
     predictions,
     incidents,
+    fieldReports,
     notifications,
     delayedVehicles,
     highRiskRoads,
@@ -1384,78 +1404,251 @@ function OperationsPage({ module }) {
             </>
           )}
 
-          {/* =================================================
-              FLEET TRACKING
-          ================================================= */}
+        {/* =================================================
+        FLEET TRACKING
+        ================================================= */}
 
-          {config.type === "fleet" && (
-            <section className="operation-panel">
+        {config.type === "fleet" && (
+        <section className="operation-panel">
 
-              <div className="operation-panel-header">
+        <div className="operation-panel-header">
+
+          <span>
+            LIVE FLEET
+          </span>
+
+          <h2>
+            Vehicle Movement
+          </h2>
+
+          <small>
+            {vehicles.length} vehicles tracked across Northeast India
+          </small>
+
+        </div>
+
+        <div className="operation-list">
+
+          {vehicles.length > 0 ? (
+
+          vehicles.map((vehicle) => {
+
+          const status = String(
+            vehicle?.status || "UNKNOWN"
+          ).toUpperCase();
+
+          /*
+           * Find the latest GPS location belonging
+           * to this exact vehicle.
+           */
+          const vehicleLocations = locations
+            .filter(
+              (location) =>
+                Number(location?.vehicle_id) ===
+                Number(vehicle?.id)
+            )
+            .sort(
+              (a, b) =>
+                new Date(b?.recorded_at || 0) -
+                new Date(a?.recorded_at || 0)
+            );
+
+            const latestLocation =
+              vehicleLocations[0];
+
+          /*
+           * GeoJSON Point:
+           * coordinates = [longitude, latitude]
+           */
+          const coordinates =
+            latestLocation?.location?.coordinates;
+
+          const longitude =
+            Array.isArray(coordinates)
+              ? coordinates[0]
+              : null;
+
+          const latitude =
+            Array.isArray(coordinates)
+              ? coordinates[1]
+              : null;
+
+          const speed =
+            latestLocation?.speed !== null &&
+            latestLocation?.speed !== undefined
+              ? Number(latestLocation.speed)
+              : null;
+
+          const heading =
+            latestLocation?.heading !== null &&
+            latestLocation?.heading !== undefined
+              ? Number(latestLocation.heading)
+              : null;
+
+          const recordedAt =
+            latestLocation?.recorded_at ||
+            vehicle?.last_location_update;
+
+          const formattedTime =
+            recordedAt
+              ? new Date(recordedAt).toLocaleString(
+                  "en-IN",
+                  {
+                    day: "2-digit",
+                    month: "short",
+                    hour: "2-digit",
+                    minute: "2-digit",
+                  }
+                )
+              : "No update";
+
+          return (
+            <div
+              className="operation-row"
+              key={
+                vehicle?.id ||
+                vehicle?.vehicle_number
+              }
+              style={{
+                alignItems: "flex-start",
+                gap: "20px",
+              }}
+            >
+
+              {/* =========================
+                  VEHICLE IDENTITY
+              ========================= */}
+
+              <div
+                style={{
+                  minWidth: "220px",
+                }}
+              >
+
+                <strong>
+                  {vehicle?.vehicle_number ||
+                    "Unknown Vehicle"}
+                </strong>
+
+                <small>
+                  {vehicle?.vehicle_type ||
+                    "Vehicle"}
+                </small>
+
+                <small>
+                  Driver:{" "}
+                  {vehicle?.driver_name ||
+                    "Not assigned"}
+                </small>
+
+              </div>
+
+
+              {/* =========================
+                  STATUS
+              ========================= */}
+
+              <div
+                style={{
+                  minWidth: "110px",
+                }}
+              >
 
                 <span>
-                  LIVE FLEET
+                  {status}
                 </span>
 
-                <h2>
-                  Vehicle Movement
-                </h2>
+                <small>
+                  {vehicle?.commodity_type ||
+                    "OTHER"}
+                </small>
 
               </div>
 
-              <div className="operation-list">
 
-                {vehicles.length > 0 ? (
-                  vehicles.map(
-                    (vehicle) => {
+              {/* =========================
+                  GPS DATA
+              ========================= */}
 
-                      const status =
-                        String(
-                          vehicle?.status ||
-                            "UNKNOWN"
-                        ).toUpperCase();
+              <div
+                style={{
+                  minWidth: "230px",
+                }}
+              >
 
-                      return (
-                        <div
-                          className="operation-row"
-                          key={
-                            vehicle?.id ||
-                            vehicle?.vehicle_number
-                          }
-                        >
+                <small>
+                  GPS LOCATION
+                </small>
 
-                          <div>
+                {latitude !== null &&
+                longitude !== null ? (
 
-                            <strong>
-                              {vehicle?.vehicle_number ||
-                                "Unknown Vehicle"}
-                            </strong>
+                  <small>
+                    {Number(latitude).toFixed(4)},
+                    {" "}
+                    {Number(longitude).toFixed(4)}
+                  </small>
 
-                            <small>
-                              {vehicle?.vehicle_type ||
-                                "Vehicle"}
-                            </small>
-
-                          </div>
-
-                          <span>
-                            {status}
-                          </span>
-
-                        </div>
-                      );
-                    }
-                  )
                 ) : (
-                  <div className="empty">
-                    No vehicles available.
-                  </div>
+
+                  <small>
+                    Location unavailable
+                  </small>
+
                 )}
 
+                <small>
+                  Updated: {formattedTime}
+                </small>
+
               </div>
 
-            </section>
+
+              {/* =========================
+                  MOVEMENT
+              ========================= */}
+
+              <div
+                style={{
+                  minWidth: "150px",
+                }}
+              >
+
+                <small>
+                  SPEED
+                </small>
+
+                <strong>
+                  {speed !== null
+                    ? `${speed.toFixed(1)} km/h`
+                    : "--"}
+                </strong>
+
+                <small>
+                  Heading:{" "}
+                  {heading !== null
+                    ? `${heading.toFixed(0)}°`
+                    : "--"}
+                </small>
+
+              </div>
+
+            </div>
+          );
+        })
+
+        ) : (
+
+          <div className="empty">
+            No vehicles available.
+          </div>
+
           )}
+
+          </div>
+
+          </section>
+        )}
 
           {/* =================================================
               SUPPLY CHAIN
@@ -1471,72 +1664,226 @@ function OperationsPage({ module }) {
                 </span>
 
                 <h2>
-                  Deliveries
+                  Essential Deliveries
                 </h2>
+
+                <small>
+                  {deliveries.length} active logistics records across Northeast India
+                </small>
 
               </div>
 
               <div className="operation-list">
 
                 {deliveries.length > 0 ? (
-                  deliveries.map(
-                    (delivery) => {
 
-                      const status =
-                        String(
-                          delivery?.status ||
-                            "UNKNOWN"
-                        ).toUpperCase();
+                  deliveries.map((delivery) => {
 
-                      return (
+                    const status = String(
+                      delivery?.status || "UNKNOWN"
+                    ).toUpperCase();
+
+                    const priority = String(
+                      delivery?.priority || "NORMAL"
+                    ).toUpperCase();
+
+                    const commodity = String(
+                      delivery?.commodity_type ||
+                        "OTHER"
+                    ).replaceAll("_", " ");
+
+                    const quantity =
+                      delivery?.quantity !== null &&
+                      delivery?.quantity !== undefined
+                        ? Number(delivery.quantity)
+                        : null;
+
+                    const expectedTime =
+                      delivery?.expected_delivery_at;
+
+                    const actualTime =
+                      delivery?.actual_delivery_at;
+
+                    const formatDateTime = (value) => {
+
+                      if (!value) {
+                        return "Not available";
+                      }
+
+                      const date = new Date(value);
+
+                      if (Number.isNaN(date.getTime())) {
+                        return "Not available";
+                      }
+
+                      return date.toLocaleString(
+                        "en-IN",
+                        {
+                          day: "2-digit",
+                          month: "short",
+                          hour: "2-digit",
+                          minute: "2-digit",
+                        }
+                      );
+                    };
+
+                    return (
+                      <div
+                        className="operation-row"
+                        key={
+                          delivery?.id ||
+                          `${delivery?.source}-${delivery?.destination}`
+                        }
+                        style={{
+                          alignItems: "flex-start",
+                          gap: "20px",
+                        }}
+                      >
+
+                        {/* =========================
+                            ROUTE
+                        ========================= */}
+
                         <div
-                          className="operation-row"
-                          key={
-                            delivery?.id ||
-                            `${delivery?.source}-${delivery?.destination}`
-                          }
+                          style={{
+                            minWidth: "300px",
+                          }}
                         >
 
-                          <div>
+                          <strong>
+                            {delivery?.source ||
+                              "Source"}
+                            {" → "}
+                            {delivery?.destination ||
+                              "Destination"}
+                          </strong>
 
-                            <strong>
+                          <small>
+                            Delivery #{delivery?.id}
+                          </small>
 
-                              {delivery?.source ||
-                                "Source"}
+                          <small>
+                            Vehicle:{" "}
+                            {delivery?.vehicle_number ||
+                              "Not assigned"}
+                          </small>
 
-                              {" → "}
+                        </div>
 
-                              {delivery?.destination ||
-                                "Destination"}
 
-                            </strong>
+                        {/* =========================
+                            CARGO
+                        ========================= */}
 
-                            <small>
+                        <div
+                          style={{
+                            minWidth: "190px",
+                          }}
+                        >
 
-                              {delivery?.commodity_type ||
-                                "Essential supply"}
+                          <small>
+                            COMMODITY
+                          </small>
 
-                              {" • "}
+                          <strong>
+                            {commodity}
+                          </strong>
 
-                              {delivery?.vehicle_number ||
-                                "Vehicle unavailable"}
+                          <small>
+                            Quantity:{" "}
+                            {quantity !== null
+                              ? quantity.toLocaleString(
+                                  "en-IN"
+                                )
+                              : "--"}
+                          </small>
 
-                            </small>
+                        </div>
 
-                          </div>
+
+                        {/* =========================
+                            PRIORITY
+                        ========================= */}
+
+                        <div
+                          style={{
+                            minWidth: "110px",
+                          }}
+                        >
+
+                          <small>
+                            PRIORITY
+                          </small>
+
+                          <span>
+                            {priority}
+                          </span>
+
+                        </div>
+
+
+                        {/* =========================
+                            STATUS
+                        ========================= */}
+
+                        <div
+                          style={{
+                            minWidth: "140px",
+                          }}
+                        >
+
+                          <small>
+                            DELIVERY STATUS
+                          </small>
 
                           <span>
                             {status}
                           </span>
 
                         </div>
-                      );
-                    }
-                  )
+
+
+                        {/* =========================
+                            ETA
+                        ========================= */}
+
+                        <div
+                          style={{
+                            minWidth: "180px",
+                          }}
+                        >
+
+                          <small>
+                            EXPECTED DELIVERY
+                          </small>
+
+                          <strong>
+                            {formatDateTime(
+                              expectedTime
+                            )}
+                          </strong>
+
+                          {actualTime && (
+                            <small>
+                              Delivered:{" "}
+                              {formatDateTime(
+                                actualTime
+                              )}
+                            </small>
+                          )}
+
+                        </div>
+
+                      </div>
+                    );
+                  })
+
                 ) : (
+
                   <div className="empty">
                     No deliveries available.
                   </div>
+
                 )}
 
               </div>
@@ -1551,6 +1898,10 @@ function OperationsPage({ module }) {
           {config.type === "risk" && (
             <>
 
+              {/* =================================================
+                  ACTIVE ALERTS
+              ================================================= */}
+
               <section className="operation-panel">
 
                 <div className="operation-panel-header">
@@ -1563,61 +1914,149 @@ function OperationsPage({ module }) {
                     Risk Events
                   </h2>
 
+                  <small>
+                    {activeAlerts.length} active alerts across the NER network
+                  </small>
+
                 </div>
 
                 <div className="operation-list">
 
                   {activeAlerts.length > 0 ? (
-                    activeAlerts.map(
-                      (alert) => {
 
-                        const severity =
-                          String(
-                            alert?.severity ||
-                              "UNKNOWN"
-                          ).toUpperCase();
+                    activeAlerts.map((alert) => {
 
-                        return (
+                      const severity = String(
+                        alert?.severity || "UNKNOWN"
+                      ).toUpperCase();
+
+                      const alertType = String(
+                        alert?.alert_type || "OTHER"
+                      ).replaceAll("_", " ");
+
+                      const location =
+                        alert?.road_name ||
+                        alert?.district_name ||
+                        alert?.vehicle_number ||
+                        "Location unavailable";
+
+                      return (
+                        <div
+                          className="operation-row"
+                          key={
+                            alert?.id ||
+                            alert?.title
+                          }
+                          style={{
+                            alignItems: "flex-start",
+                            gap: "20px",
+                          }}
+                        >
+
+                          {/* ALERT */}
+
                           <div
-                            className="operation-row"
-                            key={
-                              alert?.id ||
-                              alert?.title
-                            }
+                            style={{
+                              minWidth: "300px",
+                            }}
                           >
 
-                            <div>
+                            <strong>
+                              {alert?.title ||
+                                "Risk Event"}
+                            </strong>
 
-                              <strong>
-                                {alert?.title ||
-                                  "Risk Event"}
-                              </strong>
+                            <small>
+                              {alertType}
+                            </small>
 
-                              <small>
-                                {alert?.road_name ||
-                                  alert?.district_name ||
-                                  "Location unavailable"}
-                              </small>
+                            <small>
+                              {location}
+                            </small>
 
-                            </div>
+                          </div>
+
+
+                          {/* MESSAGE */}
+
+                          <div
+                            style={{
+                              minWidth: "300px",
+                              flex: 1,
+                            }}
+                          >
+
+                            <small>
+                              ALERT MESSAGE
+                            </small>
+
+                            <span>
+                              {alert?.message ||
+                                "No additional information available."}
+                            </span>
+
+                          </div>
+
+
+                          {/* SEVERITY */}
+
+                          <div
+                            style={{
+                              minWidth: "120px",
+                            }}
+                          >
+
+                            <small>
+                              SEVERITY
+                            </small>
 
                             <span>
                               {severity}
                             </span>
 
                           </div>
-                        );
-                      }
-                    )
+
+
+                          {/* STATUS */}
+
+                          <div
+                            style={{
+                              minWidth: "120px",
+                            }}
+                          >
+
+                            <small>
+                              STATUS
+                            </small>
+
+                            <span>
+                              {alert?.is_resolved
+                                ? "RESOLVED"
+                                : "ACTIVE"}
+                            </span>
+
+                          </div>
+
+                        </div>
+                      );
+                    })
+
                   ) : (
+
                     <div className="empty">
                       No active risk events.
                     </div>
+
                   )}
 
                 </div>
 
               </section>
+
+
+              {/* =================================================
+                  AI ROUTE PREDICTIONS
+              ================================================= */}
 
               <section className="operation-panel">
 
@@ -1631,67 +2070,218 @@ function OperationsPage({ module }) {
                     Route Risk Predictions
                   </h2>
 
+                  <small>
+                    {predictions.length} route predictions from the risk engine
+                  </small>
+
                 </div>
 
                 <div className="operation-list">
 
                   {predictions.length > 0 ? (
-                    predictions.map(
-                      (prediction) => {
 
-                        const risk =
-                          prediction?.risk_score ??
-                          prediction?.risk_percentage ??
-                          prediction?.risk ??
-                          "UNKNOWN";
+                    predictions.map((prediction) => {
 
-                        return (
+                      const probability =
+                        prediction?.disruption_probability !== null &&
+                        prediction?.disruption_probability !== undefined
+                          ? Number(
+                              prediction.disruption_probability
+                            )
+                          : null;
+
+                      const riskLevel = String(
+                        prediction?.risk_level ||
+                          "UNKNOWN"
+                      ).toUpperCase();
+
+                      const disruptionType = String(
+                        prediction?.predicted_disruption_type ||
+                          "OTHER"
+                      ).replaceAll("_", " ");
+
+                      const expectedDelay =
+                        prediction?.expected_delay_minutes !== null &&
+                        prediction?.expected_delay_minutes !== undefined
+                          ? Number(
+                              prediction.expected_delay_minutes
+                            )
+                          : null;
+
+                      /*
+                      * Route information can come from the
+                      * backend prediction response.
+                      *
+                      * If source/destination are unavailable,
+                      * fall back to route ID.
+                      */
+                      const routeName =
+                        prediction?.source &&
+                        prediction?.destination
+                          ? `${prediction.source} → ${prediction.destination}`
+                          : prediction?.route_name ||
+                            `Route #${prediction?.route_id || "?"}`;
+
+                      const probabilityText =
+                        probability !== null
+                          ? `${(probability * 100).toFixed(1)}%`
+                          : "N/A";
+
+                      return (
+                        <div
+                          className="operation-row"
+                          key={
+                            prediction?.id ||
+                            prediction?.route_id
+                          }
+                          style={{
+                            alignItems: "flex-start",
+                            gap: "20px",
+                          }}
+                        >
+
+                          {/* ROUTE */}
+
                           <div
-                            className="operation-row"
-                            key={
-                              prediction?.id ||
-                              prediction?.route_name ||
-                              prediction?.road_name
-                            }
+                            style={{
+                              minWidth: "300px",
+                            }}
                           >
 
-                            <div>
+                            <strong>
+                              {routeName}
+                            </strong>
 
-                              <strong>
-                                {prediction?.road_name ||
-                                  prediction?.route_name ||
-                                  prediction?.name ||
-                                  `Prediction #${
-                                    prediction?.id ||
-                                    "?"
-                                  }`}
-                              </strong>
+                            <small>
+                              Route ID:{" "}
+                              {prediction?.route_id ||
+                                "N/A"}
+                            </small>
 
-                              <small>
-                                {prediction?.prediction_type ||
-                                  prediction?.risk_type ||
-                                  "Route prediction"}
-                              </small>
+                            <small>
+                              Model:{" "}
+                              {prediction?.model_version ||
+                                "Unknown"}
+                            </small>
 
-                            </div>
+                          </div>
+
+
+                          {/* PROBABILITY */}
+
+                          <div
+                            style={{
+                              minWidth: "180px",
+                            }}
+                          >
+
+                            <small>
+                              DISRUPTION PROBABILITY
+                            </small>
+
+                            <strong>
+                              {probabilityText}
+                            </strong>
+
+                            {probability !== null && (
+                              <div
+                                style={{
+                                  width: "140px",
+                                  height: "6px",
+                                  marginTop: "8px",
+                                  background:
+                                    "rgba(255,255,255,0.08)",
+                                  borderRadius: "10px",
+                                  overflow: "hidden",
+                                }}
+                              >
+
+                                <div
+                                  style={{
+                                    width: `${Math.min(
+                                      Math.max(
+                                        probability * 100,
+                                        0
+                                      ),
+                                      100
+                                    )}%`,
+                                    height: "100%",
+                                    background:
+                                      "currentColor",
+                                    borderRadius: "10px",
+                                  }}
+                                />
+
+                              </div>
+                            )}
+
+                          </div>
+
+
+                          {/* RISK */}
+
+                          <div
+                            style={{
+                              minWidth: "120px",
+                            }}
+                          >
+
+                            <small>
+                              RISK LEVEL
+                            </small>
 
                             <span>
-                              {risk}
+                              {riskLevel}
                             </span>
 
                           </div>
-                        );
-                      }
-                    )
+
+
+                          {/* DISRUPTION */}
+
+                          <div
+                            style={{
+                              minWidth: "190px",
+                            }}
+                          >
+
+                            <small>
+                              PREDICTED DISRUPTION
+                            </small>
+
+                            <strong>
+                              {disruptionType}
+                            </strong>
+
+                            <small>
+                              Expected delay:{" "}
+                              {expectedDelay !== null
+                                ? `${expectedDelay} min`
+                                : "N/A"}
+                            </small>
+
+                          </div>
+
+                        </div>
+                      );
+                    })
+
                   ) : (
+
                     <div className="empty">
                       No route predictions available.
                     </div>
+
                   )}
 
                 </div>
 
               </section>
+
+
+              {/* =================================================
+                  HIGH RISK CORRIDORS
+              ================================================= */}
 
               <section className="operation-panel">
 
@@ -1705,22 +2295,46 @@ function OperationsPage({ module }) {
                     Risk Classified Roads
                   </h2>
 
+                  <small>
+                    {highRiskRoads.length} high-risk corridors identified
+                  </small>
+
                 </div>
 
                 <div className="operation-list">
 
                   {highRiskRoads.length > 0 ? (
-                    highRiskRoads.map(
-                      (road) => (
+
+                    highRiskRoads.map((road) => {
+
+                      const riskLevel = String(
+                        road?.risk_level ||
+                          "HIGH"
+                      ).toUpperCase();
+
+                      const status = String(
+                        road?.current_status ||
+                          "UNKNOWN"
+                      ).toUpperCase();
+
+                      return (
                         <div
                           className="operation-row"
                           key={
                             road?.id ||
                             road?.name
                           }
+                          style={{
+                            alignItems: "flex-start",
+                            gap: "20px",
+                          }}
                         >
 
-                          <div>
+                          <div
+                            style={{
+                              minWidth: "300px",
+                            }}
+                          >
 
                             <strong>
                               {road?.name ||
@@ -1728,24 +2342,57 @@ function OperationsPage({ module }) {
                             </strong>
 
                             <small>
-                              {road?.current_status ||
-                                "Risk classified"}
+                              Road ID:{" "}
+                              {road?.id ||
+                                "N/A"}
                             </small>
 
                           </div>
 
-                          <span>
-                            {road?.risk_level ||
-                              "HIGH"}
-                          </span>
+
+                          <div
+                            style={{
+                              minWidth: "160px",
+                            }}
+                          >
+
+                            <small>
+                              CURRENT STATUS
+                            </small>
+
+                            <span>
+                              {status}
+                            </span>
+
+                          </div>
+
+
+                          <div
+                            style={{
+                              minWidth: "130px",
+                            }}
+                          >
+
+                            <small>
+                              RISK LEVEL
+                            </small>
+
+                            <span>
+                              {riskLevel}
+                            </span>
+
+                          </div>
 
                         </div>
-                      )
-                    )
+                      );
+                    })
+
                   ) : (
+
                     <div className="empty">
                       No high-risk roads found.
                     </div>
+
                   )}
 
                 </div>
@@ -1761,534 +2408,1075 @@ function OperationsPage({ module }) {
 
           {config.type === "emergency" && (
             <>
-
+              {/* DISTRICT CONNECTIVITY */}
               <section className="operation-panel">
 
                 <div className="operation-panel-header">
-
-                  <span>
-                    EMERGENCY ACCESS
-                  </span>
-
-                  <h2>
-                    Accessible Districts
-                  </h2>
-
+                  <span>EMERGENCY CONNECTIVITY</span>
+                  <h2>District Accessibility</h2>
+                  <small>
+                    Current accessibility status across monitored NER districts
+                  </small>
                 </div>
 
                 <div className="operation-list">
 
                   {districts.length > 0 ? (
-                    districts.map(
-                      (district) => {
+                    districts.map((district) => {
 
-                        const status =
-                          String(
-                            district?.connectivity_status ||
-                              "UNKNOWN"
-                          ).toUpperCase();
+                      const connectivity = String(
+                        district?.connectivity_status || "UNKNOWN"
+                      ).toUpperCase();
 
-                        const accessible =
-                          [
-                            "ACCESSIBLE",
-                            "CONNECTED",
-                            "GOOD",
-                            "OPEN",
-                            "EXCELLENT",
-                          ].includes(
-                            status
-                          );
+                      const displayConnectivity = connectivity.replaceAll("_", " ");
+
+                      return (
+                        <div
+                          className="operation-row"
+                          key={district?.id || district?.name}
+                          style={{
+                            alignItems: "flex-start",
+                            gap: "20px",
+                          }}
+                        >
+
+                          <div style={{ minWidth: "320px" }}>
+                            <strong>
+                              {district?.name || "Unknown District"}
+                            </strong>
+
+                            <small>
+                              {district?.state || "State unavailable"}
+                            </small>
+
+                            <small>
+                              District ID: {district?.id || "N/A"}
+                            </small>
+                          </div>
+
+
+                          <div style={{ minWidth: "220px" }}>
+                            <small>CONNECTIVITY STATUS</small>
+
+                            <strong>
+                              {displayConnectivity}
+                            </strong>
+                          </div>
+
+
+                          <div style={{ flex: 1 }}>
+                            <small>EMERGENCY ACCESS</small>
+
+                            <span>
+                              {connectivity === "CONNECTED"
+                                ? "Emergency movement available"
+                                : connectivity === "PARTIALLY_CONNECTED"
+                                ? "Movement possible with restrictions"
+                                : connectivity === "DISCONNECTED"
+                                ? "Emergency access disrupted"
+                                : "Status requires verification"}
+                            </span>
+                          </div>
+
+                        </div>
+                      );
+                    })
+                  ) : (
+                    <div className="empty">
+                      No district connectivity data available.
+                    </div>
+                  )}
+
+                </div>
+
+              </section>
+
+
+              {/* EMERGENCY ROADS */}
+              <section className="operation-panel">
+
+                <div className="operation-panel-header">
+                  <span>EMERGENCY ROUTES</span>
+                  <h2>Operational Road Corridors</h2>
+
+                  <small>
+                    {
+                      roads.filter((road) => {
+                        const status = String(
+                          road?.current_status || ""
+                        ).toUpperCase();
+
+                        return (
+                          status === "OPEN" ||
+                          status === "PARTIALLY_BLOCKED"
+                        );
+                      }).length
+                    } roads currently available for emergency movement
+                  </small>
+                </div>
+
+
+                <div className="operation-list">
+
+                  {roads.filter((road) => {
+
+                    const status = String(
+                      road?.current_status || ""
+                    ).toUpperCase();
+
+                    return (
+                      status === "OPEN" ||
+                      status === "PARTIALLY_BLOCKED"
+                    );
+
+                  }).length > 0 ? (
+
+                    roads
+                      .filter((road) => {
+
+                        const status = String(
+                          road?.current_status || ""
+                        ).toUpperCase();
+
+                        return (
+                          status === "OPEN" ||
+                          status === "PARTIALLY_BLOCKED"
+                        );
+
+                      })
+                      .map((road) => {
+
+                        const status = String(
+                          road?.current_status || "UNKNOWN"
+                        ).toUpperCase();
+
+                        const risk = String(
+                          road?.risk_level || "UNKNOWN"
+                        ).toUpperCase();
 
                         return (
                           <div
                             className="operation-row"
-                            key={
-                              district?.id ||
-                              district?.name
-                            }
+                            key={road?.id || road?.name}
+                            style={{
+                              alignItems: "flex-start",
+                              gap: "20px",
+                            }}
                           >
 
-                            <div>
-
+                            <div style={{ minWidth: "320px" }}>
                               <strong>
-                                {district?.name ||
-                                  "Unknown District"}
+                                {road?.name || "Emergency Corridor"}
                               </strong>
 
                               <small>
-                                Emergency accessibility
+                                Road ID: {road?.id || "N/A"}
                               </small>
 
+                              <small>
+                                Type: {road?.road_type || "Road"}
+                              </small>
                             </div>
 
-                            <span>
-                              {accessible
-                                ? "ACCESSIBLE"
-                                : status}
-                            </span>
+
+                            <div style={{ minWidth: "220px" }}>
+                              <small>CURRENT STATUS</small>
+
+                              <strong>
+                                {status.replaceAll("_", " ")}
+                              </strong>
+                            </div>
+
+
+                            <div style={{ minWidth: "150px" }}>
+                              <small>RISK LEVEL</small>
+
+                              <span>
+                                {risk}
+                              </span>
+                            </div>
+
+
+                            <div style={{ flex: 1 }}>
+                              <small>EMERGENCY USE</small>
+
+                              <span>
+                                {status === "OPEN"
+                                  ? "Recommended for emergency movement"
+                                  : "Use with caution and field verification"}
+                              </span>
+                            </div>
 
                           </div>
                         );
-                      }
-                    )
+                      })
+
                   ) : (
+
                     <div className="empty">
-                      No district data available.
+                      No operational emergency corridors available.
                     </div>
+
                   )}
 
                 </div>
 
               </section>
 
+
+              {/* BLOCKED ROADS */}
               <section className="operation-panel">
 
                 <div className="operation-panel-header">
+                  <span>ROAD BLOCKAGES</span>
+                  <h2>Blocked & Restricted Corridors</h2>
 
-                  <span>
-                    EMERGENCY ROUTES
-                  </span>
+                  <small>
+                    {
+                      roads.filter((road) => {
 
-                  <h2>
-                    Available Roads
-                  </h2>
+                        const status = String(
+                          road?.current_status || ""
+                        ).toUpperCase();
 
+                        return (
+                          status === "BLOCKED" ||
+                          status === "PARTIALLY_BLOCKED" ||
+                          status === "UNDER_REPAIR"
+                        );
+
+                      }).length
+                    } corridors require operational attention
+                  </small>
                 </div>
+
 
                 <div className="operation-list">
 
-                  {roads.length > 0 ? (
-                    roads.map(
-                      (road) => (
-                        <div
-                          className="operation-row"
-                          key={
-                            road?.id ||
-                            road?.name
-                          }
-                        >
+                  {roads.filter((road) => {
 
-                          <div>
+                    const status = String(
+                      road?.current_status || ""
+                    ).toUpperCase();
 
-                            <strong>
-                              {road?.name ||
-                                "Unknown Road"}
-                            </strong>
+                    return (
+                      status === "BLOCKED" ||
+                      status === "PARTIALLY_BLOCKED" ||
+                      status === "UNDER_REPAIR"
+                    );
 
-                            <small>
-                              {road?.current_status ||
-                                "Road status unavailable"}
-                            </small>
+                  }).length > 0 ? (
+
+                    roads
+                      .filter((road) => {
+
+                        const status = String(
+                          road?.current_status || ""
+                        ).toUpperCase();
+
+                        return (
+                          status === "BLOCKED" ||
+                          status === "PARTIALLY_BLOCKED" ||
+                          status === "UNDER_REPAIR"
+                        );
+
+                      })
+                      .map((road) => {
+
+                        const status = String(
+                          road?.current_status || "UNKNOWN"
+                        ).toUpperCase();
+
+                        const risk = String(
+                          road?.risk_level || "UNKNOWN"
+                        ).toUpperCase();
+
+                        return (
+                          <div
+                            className="operation-row"
+                            key={road?.id || road?.name}
+                            style={{
+                              alignItems: "flex-start",
+                              gap: "20px",
+                            }}
+                          >
+
+                            <div style={{ minWidth: "320px" }}>
+                              <strong>
+                                {road?.name || "Blocked Corridor"}
+                              </strong>
+
+                              <small>
+                                Road ID: {road?.id || "N/A"}
+                              </small>
+
+                              <small>
+                                Condition score:{" "}
+                                {road?.condition_score ?? "N/A"}
+                              </small>
+                            </div>
+
+
+                            <div style={{ minWidth: "220px" }}>
+                              <small>ROAD STATUS</small>
+
+                              <strong>
+                                {status.replaceAll("_", " ")}
+                              </strong>
+                            </div>
+
+
+                            <div style={{ minWidth: "150px" }}>
+                              <small>RISK LEVEL</small>
+
+                              <span>
+                                {risk}
+                              </span>
+                            </div>
+
+
+                            <div style={{ flex: 1 }}>
+                              <small>RECOMMENDED ACTION</small>
+
+                              <span>
+                                {status === "BLOCKED"
+                                  ? "Avoid corridor — identify alternate route"
+                                  : status === "PARTIALLY_BLOCKED"
+                                  ? "Proceed only after field verification"
+                                  : "Use alternate route during repair"}
+                              </span>
+                            </div>
 
                           </div>
+                        );
+                      })
 
-                          <span>
-                            {road?.risk_level ||
-                              "UNKNOWN"}
-                          </span>
-
-                        </div>
-                      )
-                    )
                   ) : (
+
                     <div className="empty">
-                      No emergency routes available.
+                      No blocked or restricted roads reported.
                     </div>
+
                   )}
 
                 </div>
 
               </section>
 
+
+              {/* PRIORITY EMERGENCY CORRIDORS */}
+              <section className="operation-panel">
+
+                <div className="operation-panel-header">
+                  <span>PRIORITY CORRIDORS</span>
+                  <h2>Emergency Movement Priority</h2>
+
+                  <small>
+                    Open and partially blocked roads ranked by operational risk
+                  </small>
+                </div>
+
+
+                <div className="operation-list">
+
+                  {roads
+                    .filter((road) => {
+
+                      const status = String(
+                        road?.current_status || ""
+                      ).toUpperCase();
+
+                      return (
+                        status === "OPEN" ||
+                        status === "PARTIALLY_BLOCKED"
+                      );
+
+                    })
+                    .sort((a, b) => {
+
+                      const riskOrder = {
+                        CRITICAL: 4,
+                        HIGH: 3,
+                        MEDIUM: 2,
+                        LOW: 1,
+                      };
+
+                      return (
+                        (riskOrder[
+                          String(b?.risk_level || "").toUpperCase()
+                        ] || 0) -
+                        (riskOrder[
+                          String(a?.risk_level || "").toUpperCase()
+                        ] || 0)
+                      );
+
+                    })
+                    .slice(0, 5)
+                    .map((road) => {
+
+                      const status = String(
+                        road?.current_status || "UNKNOWN"
+                      ).toUpperCase();
+
+                      const risk = String(
+                        road?.risk_level || "UNKNOWN"
+                      ).toUpperCase();
+
+                      return (
+                        <div
+                          className="operation-row"
+                          key={`priority-${road?.id || road?.name}`}
+                          style={{
+                            alignItems: "flex-start",
+                            gap: "20px",
+                          }}
+                        >
+
+                          <div style={{ minWidth: "360px" }}>
+                            <strong>
+                              {road?.name || "Priority Corridor"}
+                            </strong>
+
+                            <small>
+                              Road ID: {road?.id || "N/A"}
+                            </small>
+                          </div>
+
+
+                          <div style={{ minWidth: "180px" }}>
+                            <small>RISK</small>
+
+                            <strong>
+                              {risk}
+                            </strong>
+                          </div>
+
+
+                          <div style={{ minWidth: "220px" }}>
+                            <small>ACCESS</small>
+
+                            <span>
+                              {status.replaceAll("_", " ")}
+                            </span>
+                          </div>
+
+
+                          <div style={{ flex: 1 }}>
+                            <small>OPERATIONS</small>
+
+                            <span>
+                              {status === "OPEN"
+                                ? "Preferred emergency corridor"
+                                : "Restricted emergency movement"}
+                            </span>
+                          </div>
+
+                        </div>
+                      );
+                    })}
+
+                </div>
+
+              </section>
             </>
           )}
 
-          {/* =================================================
-              FIELD REPORTS
-          ================================================= */}
+            {/* =================================================
+                FIELD REPORTS
+            ================================================= */}
 
-          {config.type === "incident" && (
-            <>
+            {config.type === "incident" && (
+              <>
+                {/* =================================================
+                    REPORT INCIDENT
+                ================================================= */}
 
-              {/* =============================================
-                  REPORT INCIDENT
-              ============================================= */}
+                <section className="operation-panel">
 
-              <section className="operation-panel">
+                  <div
+                    className="operation-panel-header"
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "space-between",
+                      gap: "20px",
+                    }}
+                  >
 
-                <div className="operation-panel-header field-report-header">
+                    <div>
+                      <span>
+                        FIELD OPERATIONS
+                      </span>
 
-                  <div>
+                      <h2>
+                        Report Incident
+                      </h2>
+
+                      <small>
+                        Submit a geo-tagged field observation from the NER network.
+                      </small>
+                    </div>
+
+                    <button
+                      type="button"
+                      className="incident-submit-btn"
+                      onClick={() =>
+                        setShowIncidentForm(
+                          (previous) => !previous
+                        )
+                      }
+                      disabled={incidentSubmitting}
+                    >
+                      {showIncidentForm
+                        ? "CLOSE FORM"
+                        : "REPORT INCIDENT"}
+                    </button>
+
+                  </div>
+
+
+                  {/* =================================================
+                      FIELD REPORT FORM
+                  ================================================= */}
+
+                  {showIncidentForm && (
+                    <form
+                      className="incident-form"
+                      onSubmit={
+                        handleIncidentSubmit
+                      }
+                    >
+
+                      {/* FORM GRID */}
+
+                      <div className="incident-form-grid">
+
+                        {/* REPORT TYPE */}
+
+                        <div className="incident-field">
+
+                          <label htmlFor="reportType">
+                            REPORT TYPE
+                          </label>
+
+                          <select
+                            id="reportType"
+                            name="reportType"
+                            value={
+                              incidentForm.reportType
+                            }
+                            onChange={
+                              handleIncidentChange
+                            }
+                            disabled={
+                              incidentSubmitting
+                            }
+                            required
+                          >
+
+                            <option value="">
+                              Select report type
+                            </option>
+
+                            <option value="LANDSLIDE">
+                              LANDSLIDE
+                            </option>
+
+                            <option value="FLOOD">
+                              FLOOD
+                            </option>
+
+                            <option value="ROAD_DAMAGE">
+                              ROAD DAMAGE
+                            </option>
+
+                            <option value="BRIDGE_DAMAGE">
+                              BRIDGE DAMAGE
+                            </option>
+
+                            <option value="HEAVY_RAIN">
+                              HEAVY RAIN
+                            </option>
+
+                            <option value="TRAFFIC">
+                              TRAFFIC
+                            </option>
+
+                            <option value="OTHER">
+                              OTHER
+                            </option>
+
+                          </select>
+
+                        </div>
+
+
+                        {/* LATITUDE */}
+
+                        <div className="incident-field">
+
+                          <label htmlFor="latitude">
+                            LATITUDE
+                          </label>
+
+                          <input
+                            id="latitude"
+                            name="latitude"
+                            type="number"
+                            step="any"
+                            placeholder="e.g. 26.1445"
+                            value={
+                              incidentForm.latitude
+                            }
+                            onChange={
+                              handleIncidentChange
+                            }
+                            disabled={
+                              incidentSubmitting
+                            }
+                            required
+                          />
+
+                        </div>
+
+
+                        {/* LONGITUDE */}
+
+                        <div className="incident-field">
+
+                          <label htmlFor="longitude">
+                            LONGITUDE
+                          </label>
+
+                          <input
+                            id="longitude"
+                            name="longitude"
+                            type="number"
+                            step="any"
+                            placeholder="e.g. 91.7362"
+                            value={
+                              incidentForm.longitude
+                            }
+                            onChange={
+                              handleIncidentChange
+                            }
+                            disabled={
+                              incidentSubmitting
+                            }
+                            required
+                          />
+
+                        </div>
+
+
+                        {/* PHOTO */}
+
+                        <div className="incident-field">
+
+                          <label htmlFor="photo">
+                            FIELD PHOTO
+                          </label>
+
+                          <input
+                            id="photo"
+                            name="photo"
+                            type="file"
+                            accept="image/jpeg,image/png,image/webp"
+                            onChange={
+                              handleIncidentChange
+                            }
+                            disabled={
+                              incidentSubmitting
+                            }
+                          />
+
+                          <small>
+                            JPG, PNG or WEBP • Maximum 5 MB
+                          </small>
+
+                        </div>
+
+                      </div>
+
+
+                      {/* =================================================
+                          DESCRIPTION
+                      ================================================= */}
+
+                      <div className="incident-field incident-description">
+
+                        <label htmlFor="description">
+                          FIELD OBSERVATION
+                        </label>
+
+                        <textarea
+                          id="description"
+                          name="description"
+                          rows="5"
+                          placeholder="Describe what you observed at the location..."
+                          value={
+                            incidentForm.description
+                          }
+                          onChange={
+                            handleIncidentChange
+                          }
+                          disabled={
+                            incidentSubmitting
+                          }
+                        />
+
+                      </div>
+
+
+                      {/* =================================================
+                          SELECTED PHOTO
+                      ================================================= */}
+
+                      {incidentForm.photo && (
+                        <div
+                          style={{
+                            marginTop: "14px",
+                            padding: "12px 14px",
+                            border:
+                              "1px solid rgba(255,255,255,0.08)",
+                            borderRadius: "8px",
+                          }}
+                        >
+
+                          <small>
+                            SELECTED PHOTO
+                          </small>
+
+                          <div
+                            style={{
+                              marginTop: "6px",
+                              display: "flex",
+                              justifyContent:
+                                "space-between",
+                              alignItems: "center",
+                              gap: "15px",
+                              flexWrap: "wrap",
+                            }}
+                          >
+
+                            <span>
+                              {incidentForm.photo.name}
+                            </span>
+
+                            <span>
+                              {(
+                                incidentForm.photo.size /
+                                1024 /
+                                1024
+                              ).toFixed(2)}{" "}
+                              MB
+                            </span>
+
+                          </div>
+
+                        </div>
+                      )}
+
+
+                      {/* =================================================
+                          FORM ERROR
+                      ================================================= */}
+
+                      {incidentError && (
+                        <div
+                          className="incident-form-error"
+                          style={{
+                            marginTop: "15px",
+                          }}
+                        >
+                          {incidentError}
+                        </div>
+                      )}
+
+
+                      {/* =================================================
+                          FORM SUCCESS
+                      ================================================= */}
+
+                      {incidentSuccess && (
+                        <div
+                          className="incident-form-success"
+                          style={{
+                            marginTop: "15px",
+                          }}
+                        >
+                          {incidentSuccess}
+                        </div>
+                      )}
+
+
+                      {/* =================================================
+                          SUBMIT
+                      ================================================= */}
+
+                      <div className="incident-form-actions">
+
+                        <button
+                          type="submit"
+                          className="incident-submit-btn"
+                          disabled={
+                            incidentSubmitting
+                          }
+                        >
+                          {incidentSubmitting
+                            ? "SUBMITTING..."
+                            : "SUBMIT FIELD REPORT"}
+                        </button>
+
+                      </div>
+
+                    </form>
+                  )}
+
+                </section>
+
+
+                {/* =================================================
+                    SUBMITTED FIELD REPORTS
+                ================================================= */}
+
+                <section className="operation-panel">
+
+                  <div className="operation-panel-header">
 
                     <span>
                       FIELD OPERATIONS
                     </span>
 
                     <h2>
-                      Report Incident
+                      Geo-tagged Field Reports
                     </h2>
+
+                    <small>
+                      Reports submitted from field operations across the NER network.
+                    </small>
 
                   </div>
 
-                  <button
-                    type="button"
-                    className="incident-toggle-btn"
-                    onClick={() => {
-                      setShowIncidentForm(
-                        (previous) =>
-                          !previous
-                      );
 
-                      setIncidentError("");
-                      setIncidentSuccess("");
-                    }}
-                  >
-                    {showIncidentForm
-                      ? "CLOSE FORM"
-                      : "REPORT INCIDENT"}
-                  </button>
+                  <div className="operation-list">
 
-                </div>
+                    {fieldReports.length > 0 ? (
 
-                {/* =========================================
-                    INCIDENT FORM
-                ========================================= */}
+                      fieldReports.map((report) => {
 
-                {showIncidentForm && (
-                  <form
-                    className="incident-form"
-                    onSubmit={
-                      handleIncidentSubmit
-                    }
-                  >
-
-                    <div className="incident-form-grid">
-
-                      {/* ROAD */}
-
-                      <div className="incident-field">
-
-                        <label htmlFor="roadId">
-                          ROAD
-                        </label>
-
-                        <select
-                          id="roadId"
-                          name="roadId"
-                          value={
-                            incidentForm.roadId
-                          }
-                          onChange={
-                            handleIncidentChange
-                          }
-                          disabled={
-                            incidentSubmitting
-                          }
-                          required
-                        >
-
-                          <option value="">
-                            Select road
-                          </option>
-
-                          {roads.map(
-                            (road) => (
-                              <option
-                                key={
-                                  road?.id
-                                }
-                                value={
-                                  road?.id
-                                }
-                              >
-                                {road?.name ||
-                                  `Road #${road?.id}`}
-                              </option>
-                            )
-                          )}
-
-                        </select>
-
-                      </div>
-
-                      {/* INCIDENT TYPE */}
-
-                      <div className="incident-field">
-
-                        <label htmlFor="incidentType">
-                          INCIDENT TYPE
-                        </label>
-
-                        <input
-                          id="incidentType"
-                          name="incidentType"
-                          type="text"
-                          placeholder="e.g. Landslide"
-                          value={
-                            incidentForm.incidentType
-                          }
-                          onChange={
-                            handleIncidentChange
-                          }
-                          disabled={
-                            incidentSubmitting
-                          }
-                          required
-                        />
-
-                      </div>
-
-                      {/* SEVERITY */}
-
-                      <div className="incident-field">
-
-                        <label htmlFor="severity">
-                          SEVERITY
-                        </label>
-
-                        <select
-                          id="severity"
-                          name="severity"
-                          value={
-                            incidentForm.severity
-                          }
-                          onChange={
-                            handleIncidentChange
-                          }
-                          disabled={
-                            incidentSubmitting
-                          }
-                        >
-
-                          <option value="LOW">
-                            LOW
-                          </option>
-
-                          <option value="MEDIUM">
-                            MEDIUM
-                          </option>
-
-                          <option value="HIGH">
-                            HIGH
-                          </option>
-
-                          <option value="CRITICAL">
-                            CRITICAL
-                          </option>
-
-                        </select>
-
-                      </div>
-
-                      {/* LATITUDE */}
-
-                      <div className="incident-field">
-
-                        <label htmlFor="latitude">
-                          LATITUDE
-                        </label>
-
-                        <input
-                          id="latitude"
-                          name="latitude"
-                          type="number"
-                          step="any"
-                          placeholder="e.g. 26.1445"
-                          value={
-                            incidentForm.latitude
-                          }
-                          onChange={
-                            handleIncidentChange
-                          }
-                          disabled={
-                            incidentSubmitting
-                          }
-                          required
-                        />
-
-                      </div>
-
-                      {/* LONGITUDE */}
-
-                      <div className="incident-field">
-
-                        <label htmlFor="longitude">
-                          LONGITUDE
-                        </label>
-
-                        <input
-                          id="longitude"
-                          name="longitude"
-                          type="number"
-                          step="any"
-                          placeholder="e.g. 91.7362"
-                          value={
-                            incidentForm.longitude
-                          }
-                          onChange={
-                            handleIncidentChange
-                          }
-                          disabled={
-                            incidentSubmitting
-                          }
-                          required
-                        />
-
-                      </div>
-
-                    </div>
-
-                    {/* DESCRIPTION */}
-
-                    <div className="incident-field incident-description">
-
-                      <label htmlFor="description">
-                        DESCRIPTION
-                      </label>
-
-                      <textarea
-                        id="description"
-                        name="description"
-                        rows="4"
-                        placeholder="Describe the incident..."
-                        value={
-                          incidentForm.description
-                        }
-                        onChange={
-                          handleIncidentChange
-                        }
-                        disabled={
-                          incidentSubmitting
-                        }
-                      />
-
-                    </div>
-
-                    {/* ERROR */}
-
-                    {incidentError && (
-                      <div className="incident-form-error">
-                        {incidentError}
-                      </div>
-                    )}
-
-                    {/* SUCCESS */}
-
-                    {incidentSuccess && (
-                      <div className="incident-form-success">
-                        {incidentSuccess}
-                      </div>
-                    )}
-
-                    {/* SUBMIT */}
-
-                    <div className="incident-form-actions">
-
-                      <button
-                        type="submit"
-                        className="incident-submit-btn"
-                        disabled={
-                          incidentSubmitting
-                        }
-                      >
-                        {incidentSubmitting
-                          ? "SUBMITTING..."
-                          : "SUBMIT INCIDENT"}
-                      </button>
-
-                    </div>
-
-                  </form>
-                )}
-
-              </section>
-
-              {/* =============================================
-                  EXISTING FIELD REPORTS
-              ============================================= */}
-
-              <section className="operation-panel">
-
-                <div className="operation-panel-header">
-
-                  <span>
-                    FIELD OPERATIONS
-                  </span>
-
-                  <h2>
-                    Field Reports
-                  </h2>
-
-                </div>
-
-                <div className="operation-list">
-
-                  {incidents.length > 0 ? (
-                    incidents.map(
-                      (incident) => {
-
-                        const severity =
+                        const reportType =
                           String(
-                            incident?.severity ||
+                            report?.report_type ||
+                              "OTHER"
+                          )
+                            .replaceAll(
+                              "_",
+                              " "
+                            )
+                            .toUpperCase();
+
+
+                        const syncStatus =
+                          String(
+                            report?.sync_status ||
                               "UNKNOWN"
                           ).toUpperCase();
 
+
+                        const latitude =
+                          report?.latitude !== null &&
+                          report?.latitude !== undefined
+                            ? Number(
+                                report.latitude
+                              ).toFixed(4)
+                            : "N/A";
+
+
+                        const longitude =
+                          report?.longitude !== null &&
+                          report?.longitude !== undefined
+                            ? Number(
+                                report.longitude
+                              ).toFixed(4)
+                            : "N/A";
+
+
                         return (
+
                           <div
                             className="operation-row"
-                            key={
-                              incident?.id
-                            }
+                            key={report?.id}
+                            style={{
+                              alignItems:
+                                "flex-start",
+                              gap: "20px",
+                            }}
                           >
 
-                            <div>
+                            {/* =================================
+                                REPORT INFORMATION
+                            ================================= */}
+
+                            <div
+                              style={{
+                                minWidth: "260px",
+                              }}
+                            >
 
                               <strong>
-                                {incident?.incident_type ||
-                                  incident?.description ||
-                                  "Field Report"}
+                                {reportType}
                               </strong>
 
                               <small>
+                                Report ID: #
+                                {report?.id ||
+                                  "N/A"}
+                              </small>
 
-                                {incident?.road_name ||
-                                  "Road unavailable"}
-
-                                {" • "}
-
-                                {incident?.status ||
-                                  "Status unavailable"}
-
-                                {" • "}
-
-                                {incident?.reported_by_name ||
+                              <small>
+                                {report?.reported_by_name ||
                                   "Unknown reporter"}
-
                               </small>
 
                             </div>
 
-                            <span>
-                              {severity}
-                            </span>
+
+                            {/* =================================
+                                FIELD OBSERVATION
+                            ================================= */}
+
+                            <div
+                              style={{
+                                minWidth: "300px",
+                                flex: 1,
+                              }}
+                            >
+
+                              <small>
+                                FIELD OBSERVATION
+                              </small>
+
+                              <span>
+                                {report?.description ||
+                                  "No description provided."}
+                              </span>
+
+                            </div>
+
+
+                            {/* =================================
+                                GPS
+                            ================================= */}
+
+                            <div
+                              style={{
+                                minWidth: "190px",
+                              }}
+                            >
+
+                              <small>
+                                GPS LOCATION
+                              </small>
+
+                              <strong>
+                                {latitude},{" "}
+                                {longitude}
+                              </strong>
+
+                              <small>
+                                Geo-tagged
+                              </small>
+
+                            </div>
+
+
+                            {/* =================================
+                                SYNC STATUS
+                            ================================= */}
+
+                            <div
+                              style={{
+                                minWidth: "120px",
+                              }}
+                            >
+
+                              <small>
+                                SYNC STATUS
+                              </small>
+
+                              <span>
+                                {syncStatus}
+                              </span>
+
+                            </div>
+
+
+                            {/* =================================
+                                PHOTO
+                            ================================= */}
+
+                            <div
+                              style={{
+                                minWidth: "120px",
+                              }}
+                            >
+
+                              <small>
+                                PHOTO
+                              </small>
+
+                              {report?.photo_url ? (
+
+                                <a
+                                  href={
+                                    report.photo_url.startsWith(
+                                      "http"
+                                    )
+                                      ? report.photo_url
+                                      : `http://localhost:5000${report.photo_url}`
+                                  }
+                                  target="_blank"
+                                  rel="noreferrer"
+                                  style={{
+                                    display:
+                                      "inline-block",
+                                    marginTop: "4px",
+                                  }}
+                                >
+                                  VIEW PHOTO
+                                </a>
+
+                              ) : (
+
+                                <span>
+                                  NOT ATTACHED
+                                </span>
+
+                              )}
+
+                            </div>
 
                           </div>
+
                         );
-                      }
-                    )
-                  ) : (
-                    <div className="empty">
-                      No field reports available.
-                    </div>
-                  )}
 
-                </div>
+                      })
 
-              </section>
+                    ) : (
 
-            </>
-          )}
+                      <div className="empty">
+                        No field reports available.
+                      </div>
 
+                    )}
+
+                  </div>
+
+                </section>
+
+              </>
+            )}          
           {/* =================================================
               DISTRICTS
           ================================================= */}
